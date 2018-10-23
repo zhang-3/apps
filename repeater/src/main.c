@@ -22,6 +22,7 @@
 #include <shell/shell_uart.h>
 #include <version.h>
 #include <logging/log.h>
+#include <random/rand32.h>
 
 #include "uwp_hal.h"
 #if 0
@@ -659,6 +660,10 @@ static void intc_test(void)
 void main(void)
 {
 	SYS_LOG_WRN("Unisoc Wi-Fi Repeater.");
+
+	u32_t rand = sys_rand32_get();
+
+	SYS_LOG_WRN("rand: %d", rand);
 
 	intc_test();
 	gpio_init();
