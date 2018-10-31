@@ -10,6 +10,7 @@
 #include <device.h>
 #include <gpio.h>
 #include <uart.h>
+#include <led.h>
 
 #include <intc_uwp.h>
 #include <uwp_hal.h>
@@ -148,6 +149,40 @@ static int cmd_uart(const struct shell *shell, size_t argc, char **argv)
 
 	return 0;
 }
+
+#define LED_NAME "led"
+#define SOTAP_LED (1)
+#define STA_LED (3)
+static int cmd_led(const struct shell *shell, size_t argc, char **argv)
+{
+	struct device *led_dev;
+	int led_pin;
+	int on_off;
+	int err = shell_cmd_precheck(shell, (argc == 3), NULL, 0);
+
+	if (err) {
+		return err;
+	}
+
+	led_dev = device_get_binding(LED_NAME);
+	if (!led_dev) {
+		shell_fprintf(shell, SHELL_ERROR,
+				"Can not find device %s.\n", LED_NAME);
+		return -1;
+	}
+
+	led_pin = atoi(argv[1]);
+	on_off = atoi(argv[2]);
+
+	if (on_off) {
+		led_on(led_dev, led_pin);
+	} else {
+		led_off(led_dev, led_pin);
+	}
+
+	return 0;
+}
+
 SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 {
 	SHELL_CMD(rand, NULL, "Generate random number.", cmd_rand),
@@ -157,6 +192,8 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 			"Usage: sleep <ms>", cmd_sleep),
 	SHELL_CMD(gpio, NULL, "Control GPIO2 to turn on/off led.",
 			cmd_gpio),
+	SHELL_CMD(led, NULL, "Control led to turn on/off.",
+			cmd_led),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 };
 /* Creating root (level 0) command "test" */
