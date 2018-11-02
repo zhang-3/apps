@@ -143,7 +143,7 @@ static int sprdwl_npi_get_info_handler(wlnpi_t *wlnpi, unsigned char *s_buf, int
 	ENG_LOG("enter %s\n", __func__);
 	ictx_id = wlnpi->ictx_id;
 	ret = wifi_cmd_npi_get_mac(ictx_id, (char *)r_buf);
-	ENG_LOG("ret from wifi drv is %d\n", ret);
+	ENG_LOG("%s() ret from wifi drv is %d\n", __func__, ret);
 
 	return ret;
 }
@@ -224,9 +224,11 @@ int iwnpi_cmd(int argc, char **argv)
 
 	argc--;
 	argv++;
+	/* set ictx_id to STA mode */
+	wlnpi->ictx_id = STA_IDX;
+
 	if (0 == strcmp(argv[0], WLNPI_WLAN0_NAME))
 	{
-		wlnpi->ictx_id = STA_IDX;
 		/* skip "wlan0" */
 		argc--;
 		argv++;
