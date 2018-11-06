@@ -25,30 +25,15 @@
 
 #include <i2c.h>
 
-#include "../../../../drivers/bluetooth/unisoc/uki_utlis.h"
-#include "../../../../drivers/bluetooth/unisoc/uki_config.h"
+#include <uwp5661/drivers/src/bt/uki_utlis.h>
 #include "blues.h"
 #include "throughput.h"
 #include "wifi_manager_service.h"
-#include "mesh.h"
 
 #define DEVICE_NAME		CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN		(sizeof(DEVICE_NAME) - 1)
 
 blues_config_t  blues_config;
-static const conf_entry_t blues_config_table[] = {
-	CONF_ITEM_TABLE(role, 0, blues_config, 1),
-	CONF_ITEM_TABLE(address, 0, blues_config, 6),
-	CONF_ITEM_TABLE(auto_run, 0, blues_config, 1),
-	CONF_ITEM_TABLE(profile_health_enabled, 0, blues_config, 1),
-	CONF_ITEM_TABLE(profile_light_enabled, 0, blues_config, 1),
-	CONF_ITEM_TABLE(net_key, 0, blues_config, 16),
-	CONF_ITEM_TABLE(device_key, 0, blues_config, 16),
-	CONF_ITEM_TABLE(app_key, 0, blues_config, 16),
-	CONF_ITEM_TABLE(node_address, 0, blues_config, 2),
-	CONF_ITEM_TABLE(firmware_log_level, 0, blues_config, 2),
-	{0, 0, 0, 0, 0}
-};
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -108,7 +93,7 @@ static void bt_ready(int err)
 	printk("Advertising successfully started\n");
 }
 
-static int cmd_init(int argc, char *argv[])
+static int cmd_init(const struct shell *shell, size_t argc, char *argv[])
 {
 	int err;
 
@@ -119,7 +104,7 @@ static int cmd_init(int argc, char *argv[])
 	return err;
 }
 
-static int cmd_vlog(int argc, char *argv[])
+static int cmd_vlog(const struct shell *shell, size_t argc, char *argv[])
 {
 	if (argc < 2) {
 		printk("%s, argc: %d", __func__, argc);
@@ -130,7 +115,7 @@ static int cmd_vlog(int argc, char *argv[])
 	return 0;
 }
 
-static int cmd_slog(int argc, char *argv[])
+static int cmd_slog(const struct shell *shell, size_t argc, char *argv[])
 {
 	if (argc < 2) {
 		printk("%s, argc: %d", __func__, argc);
@@ -146,7 +131,6 @@ void blues_init(void)
 	BTD("%s\n", __func__);
 
 	memset(&blues_config, 0, sizeof(blues_config_t));
-	vnd_load_configure(BT_CONFIG_INFO_FILE, &blues_config_table[0], 1);
 
 	if (blues_config.role == DEVICE_ROLE_MESH
 		&& blues_config.auto_run)
@@ -154,10 +138,10 @@ void blues_init(void)
 
 	if (blues_config.role == DEVICE_ROLE_BLUES
 		&& blues_config.auto_run)
-		cmd_init(0,NULL);
+		cmd_init(0 ,0, NULL);
 }
 #if 0
-static int wifi_test(int argc, char *argv[])
+static int wifi_test(const struct shell *shell, size_t argc, char *argv[])
 {
 	if (argc < 2) {
 		printk("%s, argc: %d", __func__, argc);
@@ -200,7 +184,7 @@ static int wifi_test(int argc, char *argv[])
 	return 0;
 }
 #endif
-static int cmd_btmac(int argc, char *argv[])
+static int cmd_btmac(const struct shell *shell, size_t argc, char *argv[])
 {
     uint8_t addr[6];
     get_mac_address(addr);
@@ -209,7 +193,7 @@ static int cmd_btmac(int argc, char *argv[])
 }
 
 
-static int cmd_test(int argc, char *argv[])
+static int cmd_test(const struct shell *shell, size_t argc, char *argv[])
 {
 	struct device *i2c = device_get_binding("uwp56xx_i2c");
 
@@ -229,19 +213,15 @@ static int cmd_test(int argc, char *argv[])
 
 
 
-static const struct shell_cmd blues_commands[] = {
-	{ "init", cmd_init, NULL },
-	{ "vlog", cmd_vlog, NULL },
-	{ "slog", cmd_slog, NULL },
-	{ "mesh", cmd_mesh, NULL },
-	{ "led", cmd_led, NULL },
-	{ "test", cmd_test, NULL },
-#if 0
-	{ "wifi", wifi_test, NULL },
-#endif
-	{ "btmac", cmd_btmac, NULL },
-	{ NULL, NULL, NULL}
+SHELL_CREATE_STATIC_SUBCMD_SET(blues_cmds) {
+	SHELL_CMD(init, NULL, "void", cmd_init),
+	SHELL_CMD(vlog, NULL, "void", cmd_vlog),
+	SHELL_CMD(slog, NULL, "void", cmd_slog),
+	SHELL_CMD(test, NULL, "void", cmd_test),
+	SHELL_CMD(btmac, NULL, "void", cmd_btmac),
+	SHELL_SUBCMD_SET_END
 };
 
-SHELL_REGISTER("blues", blues_commands);
+//SHELL_REGISTER("blues", blues_commands);
+SHELL_CMD_REGISTER(blues, &blues_cmds, "Function blues commands", NULL);
 

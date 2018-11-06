@@ -6,14 +6,13 @@ target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/test.c)
 
+include_directories($ENV{ZEPHYR_BASE}/ext/hal/unisoc/)
+
 target_sources_ifdef(
   CONFIG_BT
   app PRIVATE
   src/bluetooth/blues.c
-  src/bluetooth/light.c
-  src/bluetooth/health.c
   src/bluetooth/throughput.c
-  src/bluetooth/mesh.c
   )
 
 target_sources_ifdef(
