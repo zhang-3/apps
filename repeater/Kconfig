@@ -1,0 +1,14 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+mainmenu "Wi-Fi repeater"
+
+
+module = REPEATER
+module-dep = LOG
+module-str = Log level for repeater app
+module-help = Sets log level for repeater application.
+source "subsys/net/Kconfig.template.log_config.net"
+
+source "Kconfig.zephyr"

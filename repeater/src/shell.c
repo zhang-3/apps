@@ -2,10 +2,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "log.h"
+LOG_MODULE_REGISTER(LOG_MODULE_NAME)
+
 #include <zephyr.h>
 #include <misc/printk.h>
 #include <shell/shell.h>
-#include <logging/sys_log.h>
 #include <stdlib.h>
 #include <version.h>
 
@@ -17,7 +19,7 @@ u32_t str2hex(char *s)
 	char c;
 
 	if (strncmp(s, "0x", 2) && strncmp(s, "0X", 2)) {
-		SYS_LOG_ERR("Invalid hex string: %s.", s);
+		LOG_ERR("Invalid hex string: %s.", s);
 		return 0;
 	}
 
@@ -26,7 +28,7 @@ u32_t str2hex(char *s)
 
 	len = strlen(s);
 	if (len > 8) {
-		SYS_LOG_ERR("Invalid hex string.");
+		LOG_ERR("Invalid hex string.");
 		return 0;
 	}
 
@@ -41,7 +43,7 @@ u32_t str2hex(char *s)
 		else if (c >= 'a' && c <= 'f')
 			c = c - 'a' + 10;
 		else {
-			SYS_LOG_ERR("Invalid hex string.");
+			LOG_ERR("Invalid hex string.");
 			return 0;
 		}
 

@@ -2,6 +2,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "log.h"
+LOG_MODULE_DECLARE(LOG_MODULE_NAME)
+
 #include <zephyr.h>
 #include <misc/printk.h>
 #include <shell/shell.h>
@@ -30,10 +33,10 @@ static int cmd_rand(const struct shell *shell, size_t argc, char **argv)
 static void intc_uwp_soft_irq(int channel, void *data)
 {
 	if (data) {
-		SYS_LOG_INF("aon soft irq.");
+		LOG_INF("aon soft irq.");
 		uwp_aon_irq_clear_soft();
 	} else {
-		SYS_LOG_INF("soft irq.");
+		LOG_INF("soft irq.");
 		uwp_irq_clear_soft();
 	}
 }
