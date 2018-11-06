@@ -3,7 +3,7 @@
  */
 
 #include "log.h"
-LOG_MODULE_DECLARE(LOG_MODULE_NAME)
+LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <zephyr.h>
 #include <misc/printk.h>
@@ -94,7 +94,7 @@ struct gpio_callback cb;
 static void gpio_callback(struct device *dev,
 		struct gpio_callback *gpio_cb, u32_t pins)
 {
-	SYS_LOG_INF("main gpio int.\n");
+	LOG_INF("main gpio int.\n");
 }
 static int cmd_gpio(const struct shell *shell, size_t argc, char **argv)
 {

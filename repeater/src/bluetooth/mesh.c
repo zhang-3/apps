@@ -1,3 +1,7 @@
+
+#include "log.h"
+LOG_MODULE_DECLARE(LOG_MODULE_NAME);
+
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
@@ -270,7 +274,7 @@ void vendor_net_send(void)
 
 	err = bt_mesh_model_send(&vnd_models[0], &ctx, &msg, NULL, NULL);
 	if (err) {
-		SYS_LOG_ERR("Failed to send (err %d)", err);
+		LOG_ERR("Failed to send (err %d)", err);
 	}
 }
 

@@ -3,7 +3,7 @@
  */
 
 #include "log.h"
-LOG_MODULE_DECLARE(LOG_MODULE_NAME)
+LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <zephyr.h>
 #include <misc/printk.h>
