@@ -186,6 +186,42 @@ static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+static struct gpio_callback button_cb;
+int count;
+#define BUTTON_PIN 0
+#define GPIO0_REG (BASE_AON_PIN+0x10)
+#define PIN_FPU_EN BIT(8)
+
+void led3_on(void)
+{
+	struct device *led_dev;
+	u32_t base = BASE_AON_GPIOP0;
+
+	led_dev = device_get_binding(LED_NAME);
+	if (count%2 == 0)
+		led_on(led_dev, 3);
+	else
+		led_off(led_dev, 3);
+	count++;
+}
+
+static int cmd_button(const struct shell *shell, size_t argc, char **argv)
+{
+	struct device *gpio;
+
+	gpio = device_get_binding(GPIO_PORT0);
+	count = 0;
+	gpio_pin_configure(gpio, BUTTON_PIN, (GPIO_DIR_IN | GPIO_INT
+			| GPIO_INT_EDGE | GPIO_PUD_PULL_UP
+			| GPIO_INT_ACTIVE_LOW));
+	unsigned int *q = (unsigned int *)GPIO0_REG;
+	*q |= PIN_FPU_EN;
+
+	gpio_init_callback(&button_cb, led3_on, BIT(BUTTON_PIN));
+	gpio_add_callback(gpio, &button_cb);
+	gpio_pin_enable_callback(gpio, BUTTON_PIN);
+}
+
 SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 {
 	SHELL_CMD(rand, NULL, "Generate random number.", cmd_rand),
@@ -197,6 +233,8 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 			cmd_gpio),
 	SHELL_CMD(led, NULL, "Control led to turn on/off.",
 			cmd_led),
+	SHELL_CMD(button, NULL, "Push button to control led3",
+			cmd_button),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 };
 /* Creating root (level 0) command "test" */
