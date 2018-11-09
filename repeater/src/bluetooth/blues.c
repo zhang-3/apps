@@ -132,10 +132,6 @@ void blues_init(void)
 
 	memset(&blues_config, 0, sizeof(blues_config_t));
 
-	if (blues_config.role == DEVICE_ROLE_MESH
-		&& blues_config.auto_run)
-		mesh_init();
-
 	if (blues_config.role == DEVICE_ROLE_BLUES
 		&& blues_config.auto_run)
 		cmd_init(0 ,0, NULL);
