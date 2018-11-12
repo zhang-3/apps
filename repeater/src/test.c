@@ -192,16 +192,15 @@ int count;
 #define GPIO0_REG (BASE_AON_PIN+0x10)
 #define PIN_FPU_EN BIT(8)
 
-void led3_on(void)
+static void led3_on(struct device *port, struct gpio_callback *cb,
+				 u32_t pin)
 {
-	struct device *led_dev;
-	u32_t base = BASE_AON_GPIOP0;
-
-	led_dev = device_get_binding(LED_NAME);
+	port = device_get_binding(LED_NAME);
+	pin = 3;
 	if (count%2 == 0)
-		led_on(led_dev, 3);
+		led_on(port, pin);
 	else
-		led_off(led_dev, 3);
+		led_off(port, pin);
 	count++;
 }
 
@@ -220,6 +219,7 @@ static int cmd_button(const struct shell *shell, size_t argc, char **argv)
 	gpio_init_callback(&button_cb, led3_on, BIT(BUTTON_PIN));
 	gpio_add_callback(gpio, &button_cb);
 	gpio_pin_enable_callback(gpio, BUTTON_PIN);
+	return 0;
 }
 
 SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
