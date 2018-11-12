@@ -88,48 +88,6 @@ static int cmd_sleep(const struct shell *shell, size_t argc, char **argv)
 }
 
 #define GPIO_PORT0	"UWP_GPIO_P0"
-#define GPIO0		0
-#define GPIO2		2
-struct gpio_callback cb;
-static void gpio_callback(struct device *dev,
-		struct gpio_callback *gpio_cb, u32_t pins)
-{
-	LOG_INF("main gpio int.\n");
-}
-static int cmd_gpio(const struct shell *shell, size_t argc, char **argv)
-{
-	struct device *gpio;
-
-	gpio = device_get_binding(GPIO_PORT0);
-	if (gpio == NULL) {
-		shell_fprintf(shell, SHELL_ERROR,
-				"Can not find device %s.\n", GPIO_PORT0);
-		return -1;
-	}
-
-	gpio_pin_configure(gpio, GPIO2, GPIO_DIR_OUT
-			| GPIO_PUD_PULL_DOWN);
-
-	gpio_pin_write(gpio, GPIO2, 1);
-	k_sleep(500);
-	gpio_pin_write(gpio, GPIO2, 0);
-	k_sleep(500);
-	gpio_pin_write(gpio, GPIO2, 1);
-
-	gpio_pin_disable_callback(gpio, GPIO0);
-
-	gpio_pin_configure(gpio, GPIO0,
-			GPIO_DIR_IN | GPIO_INT | GPIO_INT_LEVEL |
-			GPIO_INT_ACTIVE_LOW | GPIO_PUD_PULL_UP);
-
-	gpio_init_callback(&cb, gpio_callback, BIT(GPIO0));
-	gpio_add_callback(gpio, &cb);
-
-	gpio_pin_enable_callback(gpio, GPIO0);
-
-	return 0;
-}
-
 #define UART_2			"UART_2"
 static int cmd_uart(const struct shell *shell, size_t argc, char **argv)
 {
@@ -229,8 +187,6 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 	SHELL_CMD(uart, NULL, "Fill a message to UART.", cmd_uart),
 	SHELL_CMD(sleep, NULL, "Sleep for (n) micro seconds.\n"
 			"Usage: sleep <ms>", cmd_sleep),
-	SHELL_CMD(gpio, NULL, "Control GPIO2 to turn on/off led.",
-			cmd_gpio),
 	SHELL_CMD(led, NULL, "Control led to turn on/off.",
 			cmd_led),
 	SHELL_CMD(button, NULL, "Push button to control led3",
