@@ -16,7 +16,7 @@ target_sources_ifdef(
   )
 
 target_sources_ifdef(
-  CONFIG_BT_WIFIMGR_SERVICE
+  CONFIG_BT
   app PRIVATE
   src/bluetooth/wifi_manager_service.c
   )

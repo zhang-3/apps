@@ -17,14 +17,14 @@
 #include "host/hci_core.h"
 
 #include "wifi_manager_service.h"
-#include "../../../../drivers/bluetooth/unisoc/uki_utlis.h"
+#include <uwp5661/drivers/src/bt/uki_utlis.h>
 
 #define UINT16_TO_STREAM(p, u16) {*(p)++ = (uint8_t)(u16); *(p)++ = (uint8_t)((u16) >> 8);}
 #define UINT8_TO_STREAM(p, u8)   {*(p)++ = (uint8_t)(u8);}
 
 #define GET_STATUS_TIMEOUT  K_SECONDS(5)
 #define SCAN_TIMEOUT        K_SECONDS(10)
-#define SCAN_NUM    3
+#define SCAN_NUM    1
 #define HCI_OP_ENABLE_CMD 0xFCA1
 
 
@@ -57,37 +57,7 @@ static int scan_result = 0;
 
 extern int get_disable_buf(void *buf);
 extern void sprd_bt_irq_disable(void);
-#if 0
-struct bt_conn *cur_conn;
-static void exchange_func(struct bt_conn *conn, u8_t err,
-				struct bt_gatt_exchange_params *params)
-{
-	printk("Exchange %s\n", err == 0 ? "successful" : "failed");
-}
 
-static struct bt_gatt_exchange_params exchange_params;
-
-int do_gatt_exchange_mtu()
-{
-	int err;
-
-	if (!cur_conn) {
-		printk("Not connected\n");
-		return 0;
-	}
-
-	exchange_params.func = exchange_func;
-
-	err = bt_gatt_exchange_mtu(cur_conn, &exchange_params);
-	if (err) {
-		printk("Exchange failed (err %d)\n", err);
-	} else {
-		printk("Exchange pending\n");
-	}
-
-	return 0;
-}
-#endif
 static void wifimgr_ccc_cfg_changed(const struct bt_gatt_attr *attr, u16_t value)
 {
 	BTD("%s\n", __func__);
@@ -219,12 +189,6 @@ void wifimgr_set_conf_and_connect(const void *buf)
 			break;
 		}
 	}else {
-		res_result = RESULT_FAIL;
-		goto error;
-	}
-
-	if (0 != wifimgr_do_scan(SCAN_NUM)) {
-		BTD("%s, scan fail\n", __func__);
 		res_result = RESULT_FAIL;
 		goto error;
 	}
@@ -485,6 +449,24 @@ void wifimgr_close(const void *buf)
 	wifi_manager_notify(data, sizeof(data));
 }
 
+void wifimgr_scan(const void *buf)
+{
+	BTD("%s\n", __func__);
+	int ret = -1;
+	char data[2] = {0};
+	u8_t res_result = RESULT_SUCCESS;
+
+	ret = wifimgr_do_scan(SCAN_NUM);
+	if (0 != ret) {
+		res_result = RESULT_FAIL;
+	}
+
+	data[0] = RESULT_SCAN_DONE;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, sizeof(data));
+}
+
 extern char *net_byte_to_hex(char *ptr, u8_t byte, char base, bool pad);
 void wifimgr_start_ap(const void *buf)
 {
@@ -671,7 +653,7 @@ void wifimgr_disable_bt(const void *buf)
 	char data[256] = {0};
 
 	BTD("%s, ->bt_unpair\n",__func__);
-	bt_unpair(NULL);
+	bt_unpair(BT_ID_DEFAULT, NULL);
 
 	BTD("%s, ->send disable\n",__func__);
 	size = get_disable_buf(data);
@@ -757,8 +739,8 @@ static ssize_t wifi_manager_write(struct bt_conn *conn, const struct bt_gatt_att
 
 	if (0 == offset) {
 		memset(value, 0, sizeof(wifimgr_long_value));
-		total_len = sys_get_le16(buf + OPCODE_BYTE) + OPCODE_BYTE +LEN_BYTE;
-		BTD("%s,total_len = %d\n", __func__,total_len);
+		total_len = sys_get_le16((u8_t *)buf + OPCODE_BYTE) + OPCODE_BYTE + LEN_BYTE;
+		BTD("%s,total_len = %d\n", __func__, total_len);
 	}
 	memcpy(value + offset, buf, len);
 	total_len -= len;
@@ -792,6 +774,9 @@ static ssize_t wifi_manager_write(struct bt_conn *conn, const struct bt_gatt_att
 		break;
 		case CMD_DISABLE_BT:
 			wifimgr_disable_bt(&value[1]);
+		break;
+		case CMD_SCAN:
+			wifimgr_scan(&value[1]);
 		break;
 
 		default:
@@ -840,7 +825,70 @@ void wifimgr_ctrl_iface_notify_scan_res(char *ssid, char *bssid, unsigned char b
 				unsigned char channel, signed char signal)
 {
 	BTD("%s\n", __func__);
+	wifi_scan_res_type scan_res;
+	u8_t res_result = RESULT_SUCCESS;
+	char data[255] = {0};
+	u16_t data_len = 0;
+	u16_t ssid_len = 0;
+	u16_t bssid_len = 0;
 
+	char *p = NULL;
+	int i;
+
+	if (ssid) {
+		ssid_len = strlen(ssid);
+		BTD("ssid = %s\n", ssid);
+	} else {
+		BTD("ssid = NULL\n");
+		ssid_len = 0;
+	}
+
+	if (bssid) {
+		bssid_len = BSSID_LEN;
+		BTD("bssid = %02x:%02x:%02x:%02x:%02x:%02x\n", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+	} else {
+		BTD("%s ,bssid = NULL\n", __func__);
+		bssid_len = 0;
+	}
+
+	BTD("band:%d, channel:%d, signal:%d\n", band, channel, signal);
+
+	if ((ssid_len > MAX_SSID_LEN)
+		|| (bssid_len > BSSID_LEN)) {
+		res_result = RESULT_FAIL;
+		data[0] = RESULT_SCAN_DONE;
+		data[1] = res_result;
+
+		BTD("%s ,len error\n", __func__);
+		wifi_manager_notify(data, 2);
+		return;
+	}
+
+	memset(&scan_res, 0, sizeof(scan_res));
+	memcpy(scan_res.ssid, ssid, ssid_len);
+	memcpy(scan_res.bssid, bssid, bssid_len);
+	scan_res.band = band;
+	scan_res.channel = channel;
+	scan_res.signal = signal;
+	data_len = 4 + ssid_len + bssid_len;
+	res_result = RESULT_SUCCESS;
+
+	p = data;
+	UINT8_TO_STREAM(p, RESULT_SCAN_REPORT);
+	UINT8_TO_STREAM(p, res_result);
+	UINT16_TO_STREAM(p, data_len);
+
+	UINT16_TO_STREAM(p, ssid_len);
+	for (i = 0; i < ssid_len; i++) {
+		UINT8_TO_STREAM(p, scan_res.ssid[i]);
+	}
+
+	UINT16_TO_STREAM(p, bssid_len);
+	for (i = 0; i < bssid_len; i++) {
+		UINT8_TO_STREAM(p, scan_res.bssid[i]);
+	}
+
+	wifi_manager_notify(data, data_len + 4);
 }
 
 void wifimgr_ctrl_iface_notify_scan_done(unsigned char result)

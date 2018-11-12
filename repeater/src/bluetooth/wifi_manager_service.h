@@ -15,6 +15,7 @@
 #define CMD_GET_CONF                   0x06
 #define CMD_START_AP                   0x07
 #define CMD_DISABLE_BT                 0x08
+#define CMD_SCAN                       0x09
 
 #define RESULT_OPEN                    0x81
 #define RESULT_CLOSE                   0x82
@@ -23,6 +24,8 @@
 #define RESULT_GET_STATUS              0x85
 #define RESULT_GET_CONF                0x86
 #define RESULT_START_AP                0x87
+#define RESULT_SCAN_DONE               0x89
+#define RESULT_SCAN_REPORT             0x8A
 
 typedef struct {
 	char ssid[MAX_SSID_LEN+1];
@@ -31,6 +34,14 @@ typedef struct {
 	unsigned char band;
 	unsigned char channel;
 }wifi_config_type;
+
+typedef struct {
+	char ssid[MAX_SSID_LEN+1];
+	char bssid[BSSID_LEN+1];
+	unsigned char band;
+	unsigned char channel;
+	signed char signal;
+}wifi_scan_res_type;
 
 typedef struct {
 	unsigned char sta_status;
