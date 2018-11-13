@@ -1,20 +1,9 @@
-/******************************************************************************
+/*
+ * Copyright (c) 2018, UNISOC Incorporated
  *
- *  Copyright (C) 2018 Spreadtrum Corporation
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at:
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- ******************************************************************************/
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <zephyr/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,9 +16,9 @@
 
 #include "bt_npi.h"
 #include "bt_eng.h"
-#include "../../../../drivers/bluetooth/unisoc/uki_utlis.h"
+#include "bt_utlis.h"
 
-#define RESPONSE_DUMP(param) BTD("%s, response dump: %s\n", __FUNCTION__, param);
+#define RESPONSE_DUMP(param) BT_LOG("%s, response dump: %s\n", __FUNCTION__, param);
 #define CASE_RETURN_STR(const) case const: return #const;
 
 static BTEUT_TX_ELEMENT g_bteut_tx = {
@@ -138,8 +127,6 @@ static bteut_eut_running g_bteut_runing = BTEUT_EUT_RUNNING_OFF;
 static int bteut_rf_path = BTEUT_RFPATH_UNKNOWN;
 
 static char *le_test_legacy_list[] = {"marlin", "marlin2", "pike2", "sharkle", "sharkl3", "sharklep", NULL};
-extern char *uki_strtok_r(char *str, const char *delim, char **saveptr);
-
 
 int bt_testmode_set(bteut_bt_mode bt_mode, bteut_testmode testmode, char *rsp);
 int bt_testmode_get(bteut_bt_mode bt_mode, char *rsp);
@@ -463,7 +450,7 @@ static int le_test_mode_inuse(void)
 		if (le_test_legacy_list[i] == NULL)
 			break;
 		if (!strcmp(le_test_legacy_list[i], property_buf)) {
-			BTD("legacy device found: %s\n", le_test_legacy_list[i]);
+			BT_LOG("legacy device found: %s\n", le_test_legacy_list[i]);
 			return 0;
 		}
 	}
@@ -501,12 +488,12 @@ static int get_sprd_sub_str(const char *buf, char **revdata, char a, char *delim
 		memcpy(revdata[0], start, len);
 
 		/* get sub str by delimeter */
-		tokenPtr = uki_strtok_r(substr, delim, &outer_ptr);
+		tokenPtr = u_strtok_r(substr, delim, &outer_ptr);
 		while (NULL != tokenPtr && index < count) {
 			strncpy(revdata[index++], tokenPtr, substr_max_len);
 
 			/* next */
-			tokenPtr = uki_strtok_r(NULL, delim, &outer_ptr);
+			tokenPtr = u_strtok_r(NULL, delim, &outer_ptr);
 		}
 	}
 
@@ -523,7 +510,7 @@ static int get_sprd_cmd_index(char *buf) {
 
 	start = strchr(buf, '=');
 	if (NULL == start) {
-		BTE("expected '=', but argument is: %s\n", buf);
+		BT_LOG("expected '=', but argument is: %s\n", buf);
 		return -1;
 	}
 
@@ -539,7 +526,7 @@ static int get_sprd_cmd_index(char *buf) {
 		str_len = cur - start;
 		strncpy(name_str, (char *)start, str_len);
 	} else {
-		BTE("expected paramters, but argument is: %s\n", buf);
+		BT_LOG("expected paramters, but argument is: %s\n", buf);
 		return -1;
 	}
 
@@ -630,15 +617,15 @@ void bt_npi_parse(int module_index, char *buf, char *rsp) {
 	int cmd_index = -1;
 
 	if (cmdline_handle(cmdline, buf) <= 0) {
-		BTD("Got Cmdline Error: %s\n", buf);
+		BT_LOG("Got Cmdline Error: %s\n", buf);
 		SNPRINT(rsp, "cmdline error");
 		return;
 	}
 
-	BTD("%s, cmdline: %s\n", dump_module_index(module_index), cmdline);
+	BT_LOG("%s, cmdline: %s\n", dump_module_index(module_index), cmdline);
 
 	if (EUT_BT_MODULE_INDEX != module_index && EUT_BLE_MODULE_INDEX != module_index) {
-		BTD("Unknow Module Index for Bluetooth NPI Test, module_index: %d\n", module_index);
+		BT_LOG("Unknow Module Index for Bluetooth NPI Test, module_index: %d\n", module_index);
 		SNPRINT(rsp, "can not match TheClassic/BLE Test Founction");
 		return;
 	}
@@ -647,12 +634,12 @@ void bt_npi_parse(int module_index, char *buf, char *rsp) {
 	cmd_index = get_sprd_cmd_index(cmdline);
 
 	if (cmd_index < 0) {
-		BTD("Unknow CMD for Bluetooth NPI Test, cmd_index: %d\n", cmd_index);
+		BT_LOG("Unknow CMD for Bluetooth NPI Test, cmd_index: %d\n", cmd_index);
 		SNPRINT(rsp, "can not match TheClassic/BLE Test Command");
 		return;
 	}
 
-	BTD("dump: args0: %s, args1: %s, args2: %s, args3: %s, cmd: %s\n",
+	BT_LOG("dump: args0: %s, args1: %s, args2: %s, args3: %s, cmd: %s\n",
 			args0, args1, args2, args3, dump_cmd_index(cmd_index));
 
 	switch (cmd_index) {
@@ -818,7 +805,7 @@ void bt_npi_parse(int module_index, char *buf, char *rsp) {
 
 		//-----------------------------------------------------
 		default:
-			BTD("can not match the at command: %d\n", cmd_index);
+			BT_LOG("can not match the at command: %d\n", cmd_index);
 			SNPRINT(rsp, "can not match the at command");
 			return;
 	}
@@ -870,47 +857,47 @@ int bt_testmode_set(bteut_bt_mode bt_mode, bteut_testmode testmode, char *rsp) {
 	int ret = -1;
 	testmode = testmode+1;
 
-	BTD("ADL entry %s(), bt_mode = %d, g_bt_mode = %d, testmode = %d, "
+	BT_LOG("ADL entry %s(), bt_mode = %d, g_bt_mode = %d, testmode = %d, "
 			"g_bteut_testmode = %d\n",
 			__func__, bt_mode, g_bt_mode, testmode, g_bteut_testmode);
 
 	if(BTEUT_TESTMODE_LEAVE != testmode && BTEUT_TESTMODE_LEAVE != g_bteut_testmode){
-		BTD("%s(), has been in testmode\n", __func__);
+		BT_LOG("%s(), has been in testmode\n", __func__);
 		goto err;
 	}
 
 	switch (testmode) {
 		case BTEUT_TESTMODE_LEAVE: {
-			BTD("ADL %s(), case BTEUT_TESTMODE_LEAVE:\n", __func__);
+			BT_LOG("ADL %s(), case BTEUT_TESTMODE_LEAVE:\n", __func__);
 
 			if (BTEUT_TESTMODE_ENTER_NONSIG == g_bteut_testmode) {
 				if (BTEUT_BT_MODE_CLASSIC != g_bt_mode && BTEUT_BT_MODE_BLE != g_bt_mode) {
 					/* is not BT_MODE_OFF, is error */
-					BTD("ADL %s(), g_bt_mode is ERROR, g_bt_mode = %d\n", __func__, g_bt_mode);
+					BT_LOG("ADL %s(), g_bt_mode is ERROR, g_bt_mode = %d\n", __func__, g_bt_mode);
 					goto err;
 				}
 
 				if (BTEUT_TESTMODE_LEAVE != g_bteut_testmode) {
 					if (BTEUT_TXRX_STATUS_TXING == g_bteut_txrx_status ||
 						BTEUT_TXRX_STATUS_RXING == g_bteut_txrx_status) {
-						BTD("ADL %s(), txrx_status is ERROR, txrx_status = %d\n", __func__, g_bteut_txrx_status);
+						BT_LOG("ADL %s(), txrx_status is ERROR, txrx_status = %d\n", __func__, g_bteut_txrx_status);
 						goto err;
 					}
 				}
 
 			} else if (BTEUT_TESTMODE_ENTER_EUT == g_bteut_testmode) {
 				ret = engpc_bt_dut_mode_configure(0);
-				BTD("ADL %s(), case BTEUT_TESTMODE_LEAVE: called dut_mode_configure(), ret = %d\n",
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_LEAVE: called dut_mode_configure(), ret = %d\n",
 					__func__, ret);
 
 				if (0 != ret) {
-					BTD("ADL %s(), case BTEUT_TESTMODE_LEAVE: called "
+					BT_LOG("ADL %s(), case BTEUT_TESTMODE_LEAVE: called "
 							"dut_mode_configure(), ret = %d, goto err\n",
 							__func__, ret);
 					goto err;
 				}
 
-				BTD("ADL %s(), case BTEUT_TESTMODE_LEAVE: set g_bteut_runing to "
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_LEAVE: set g_bteut_runing to "
 						"RUNNING_OFF\n",
 						__func__);
 				g_bteut_runing = BTEUT_EUT_RUNNING_OFF;
@@ -918,64 +905,64 @@ int bt_testmode_set(bteut_bt_mode bt_mode, bteut_testmode testmode, char *rsp) {
 
 			engpc_bt_off();
 
-			BTD("ADL %s(), case BTEUT_TESTMODE_LEAVE: set g_bteut_testmode to "
+			BT_LOG("ADL %s(), case BTEUT_TESTMODE_LEAVE: set g_bteut_testmode to "
 					"BTEUT_TESTMODE_LEAVE\n",
 					__func__);
 			g_bteut_testmode = BTEUT_TESTMODE_LEAVE;
 		} break;
 
 		case BTEUT_TESTMODE_ENTER_EUT: {
-			BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT:\n", __func__);
+			BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT:\n", __func__);
 
 			if (BTEUT_TESTMODE_ENTER_EUT != g_bteut_testmode) {
 				g_bteut_testmode = BTEUT_TESTMODE_ENTER_EUT;
 
 				ret = engpc_bt_on();
 				if (0 != ret) {
-					BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG: called "
+					BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG: called "
 							"engpc_bt_on is error, goto err\n",
 							__func__);
 					goto err;
 				}
 
 				ret = engpc_bt_dut_mode_configure(1);
-				BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: called "
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: called "
 						"dut_mode_configure(1), ret = %d\n",
 						__func__, ret);
 
 				if (0 != ret) {
-					BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: called "
+					BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: called "
 							"dut_mode_configure(1), ret = %d, goto err\n",
 							__func__, ret);
 					goto err;
 				}
 
-				BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: set g_bteut_runing to "
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: set g_bteut_runing to "
 						"BTEUT_EUT_RUNNING_ON\n",
 						__func__);
 				g_bteut_runing = BTEUT_EUT_RUNNING_ON;
 			} else {
-				BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: now is ENTER_EUT, error.\n",
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_EUT: now is ENTER_EUT, error.\n",
 						__func__);
 				goto err;
 			}
 		} break;
 
 		case BTEUT_TESTMODE_ENTER_NONSIG: {
-			BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG:\n", __func__);
+			BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG:\n", __func__);
 
 			if (BTEUT_TESTMODE_ENTER_NONSIG != g_bteut_testmode) {
 				g_bteut_testmode = BTEUT_TESTMODE_ENTER_NONSIG;
 			} else {
-				BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG: now is ENTER NONSIG, "
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG: now is ENTER NONSIG, "
 						"error.\n",
 						__func__);
 				goto err;
 			}
-			BTD("calling engpc_bt_on\n");
+			BT_LOG("calling engpc_bt_on\n");
 			ret = engpc_bt_on();
 			if (0 != ret) {
-				BTD("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG: called engpc_bt_on() "
+				BT_LOG("ADL %s(), case BTEUT_TESTMODE_ENTER_NONSIG: called engpc_bt_on() "
 						"is error, goto err\n",
 						__func__);
 				goto err;
@@ -983,24 +970,24 @@ int bt_testmode_set(bteut_bt_mode bt_mode, bteut_testmode testmode, char *rsp) {
 		} break;
 
 		default:
-			BTD("ADL %s(), case default\n", __func__);
+			BT_LOG("ADL %s(), case default\n", __func__);
 	}
 
-	BTD("ADL %s(), set bt_mode is %d\n", __func__, bt_mode);
+	BT_LOG("ADL %s(), set bt_mode is %d\n", __func__, bt_mode);
 	g_bt_mode = bt_mode; /* is CLASSIC OR BLE */
 
 	strncpy(rsp, (BTEUT_BT_MODE_BLE == g_bt_mode ? EUT_BLE_OK : EUT_BT_OK),
 			BT_EUT_COMMAND_RSP_MAX_LEN);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -1020,9 +1007,9 @@ err:
 *
 ********************************************************************/
 int bt_testmode_get(bteut_bt_mode bt_mode, char *rsp) {
-	BTD("ADL entry %s(), bt_mode = %d\n", __func__, bt_mode);
+	BT_LOG("ADL entry %s(), bt_mode = %d\n", __func__, bt_mode);
 
-	BTD("ADL %s(), set g_bt_mode to %d\n", __func__, bt_mode);
+	BT_LOG("ADL %s(), set g_bt_mode to %d\n", __func__, bt_mode);
 	g_bt_mode = bt_mode;
 
 	snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%d",
@@ -1031,7 +1018,7 @@ int bt_testmode_get(bteut_bt_mode bt_mode, char *rsp) {
 
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s\n", __func__, rsp);
 	return 0;
 }
 
@@ -1053,7 +1040,7 @@ int bt_testmode_get(bteut_bt_mode bt_mode, char *rsp) {
 *
 ********************************************************************/
 int bt_address_set(const char *addr, char *rsp) {
-	BTD("ADL entry %s(), addr = %s\n", __func__, addr);
+	BT_LOG("ADL entry %s(), addr = %s\n", __func__, addr);
 
 	if ('\"' == *addr) {
 		/* skip \" */
@@ -1061,13 +1048,13 @@ int bt_address_set(const char *addr, char *rsp) {
 	}
 
 	strncpy(g_bteut_rx.addr, addr, BT_MAC_STR_MAX_LEN);
-	BTD("ADL %s(), addr = %s\n", __func__, g_bteut_rx.addr);
+	BT_LOG("ADL %s(), addr = %s\n", __func__, g_bteut_rx.addr);
 
 	strncpy(rsp, (BTEUT_BT_MODE_BLE == g_bt_mode ? EUT_BLE_OK : EUT_BT_OK),
 			BT_EUT_COMMAND_RSP_MAX_LEN);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
 	return 0;
 }
 
@@ -1088,7 +1075,7 @@ int bt_address_set(const char *addr, char *rsp) {
 *
 ********************************************************************/
 int bt_address_get(char *rsp) {
-	BTD("ADL entry %s()\n", __func__);
+	BT_LOG("ADL entry %s()\n", __func__);
 
 	snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%s",
 			(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_ADDRESS_REQ_RET : BT_ADDRESS_REQ_RET),
@@ -1096,7 +1083,7 @@ int bt_address_get(char *rsp) {
 
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s\n", __func__, rsp);
 	return 0;
 }
 
@@ -1124,11 +1111,11 @@ int bt_channel_set(bteut_cmd_type cmd_type, int ch, char *rsp) {
 	} else if (BTEUT_CMD_TYPE_RX == cmd_type) {
 		g_bteut_rx.channel = ch;
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
-	BTD("%s, Channle: %d\n", cmd_type == BTEUT_CMD_TYPE_TX ? "TX" : "RX" , ch);
+	BT_LOG("%s, Channle: %d\n", cmd_type == BTEUT_CMD_TYPE_TX ? "TX" : "RX" , ch);
 
 	strncpy(rsp, (BTEUT_BT_MODE_BLE == g_bt_mode ? EUT_BLE_OK : EUT_BT_OK),
 			BT_EUT_COMMAND_RSP_MAX_LEN);
@@ -1140,7 +1127,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1171,7 +1158,7 @@ int bt_channel_get(bteut_cmd_type cmd_type, char *rsp) {
 				(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_RX_CHANNEL_REQ_RET : BT_RX_CHANNEL_REQ_RET),
 				g_bteut_rx.channel);
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1182,7 +1169,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1210,7 +1197,7 @@ int bt_pattern_set(bteut_cmd_type cmd_type, int pattern, char *rsp) {
 	} else if (BTEUT_CMD_TYPE_RX == cmd_type) {
 		g_bteut_rx.pattern = pattern;
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1224,7 +1211,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1255,7 +1242,7 @@ int bt_pattern_get(bteut_cmd_type cmd_type, char *rsp) {
 				(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_RX_PATTERN_REQ_RET : BT_RX_PATTERN_REQ_RET),
 				g_bteut_rx.pattern);
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1266,7 +1253,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1294,7 +1281,7 @@ int bt_pkttype_set(bteut_cmd_type cmd_type, int pkttype, char *rsp) {
 	} else if (BTEUT_CMD_TYPE_RX == cmd_type) {
 		g_bteut_rx.pkttype = pkttype;
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1308,7 +1295,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1339,7 +1326,7 @@ int bt_pkttype_get(bteut_cmd_type cmd_type, char *rsp) {
 				(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_RX_PKTTYPE_REQ_RET : BT_RX_PKTTYPE_REQ_RET),
 				(int)g_bteut_rx.pkttype);
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1350,7 +1337,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1426,8 +1413,8 @@ int bt_txpktlen_get(char *rsp) {
 int bt_txpwr_set(bteut_txpwr_type txpwr_type, unsigned int value, char *rsp) {
 	int ret = -1;
 
-	BTD("txpwr_type = %d, value = %d\n", (int)txpwr_type, value);
-	BTD("g_bteut_testmode = %d, g_bteut_runing = %d\n", (int)g_bteut_testmode,
+	BT_LOG("txpwr_type = %d, value = %d\n", (int)txpwr_type, value);
+	BT_LOG("g_bteut_testmode = %d, g_bteut_runing = %d\n", (int)g_bteut_testmode,
 			(int)g_bteut_runing);
 
 	g_bteut_tx.txpwr.power_type = txpwr_type;
@@ -1442,7 +1429,7 @@ int bt_txpwr_set(bteut_txpwr_type txpwr_type, unsigned int value, char *rsp) {
 		ret = engpc_bt_dut_mode_send(HCI_DUT_SET_TXPWR, buf, 3);
 
 		if (0 != ret) {
-			BTD("ADL %s(), call dut_mode_send() is ERROR, goto err\n", __func__);
+			BT_LOG("ADL %s(), call dut_mode_send() is ERROR, goto err\n", __func__);
 			goto err;
 		}
 	}
@@ -1455,7 +1442,7 @@ int bt_txpwr_set(bteut_txpwr_type txpwr_type, unsigned int value, char *rsp) {
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1505,7 +1492,7 @@ int bt_txpwr_get(char *rsp) {
 int bt_rxgain_set(bteut_gain_mode mode, unsigned int value, char *rsp) {
 	int ret = -1;
 
-	BTD("ADL entry %s(), rxgain_mode = %d, value = %d\n", __func__, (int)mode, value);
+	BT_LOG("ADL entry %s(), rxgain_mode = %d, value = %d\n", __func__, (int)mode, value);
 
 	g_bteut_rx.rxgain.mode = mode;
 	if (BTEUT_GAIN_MODE_FIX == mode) {
@@ -1513,21 +1500,21 @@ int bt_rxgain_set(bteut_gain_mode mode, unsigned int value, char *rsp) {
 	} else if (BTEUT_GAIN_MODE_AUTO == mode) {
 		g_bteut_rx.rxgain.value = 0; /* set to 0 */
 	} else {
-		BTE("unknow rx gain mode: %d\n", mode);
+		BT_LOG("unknow rx gain mode: %d\n", mode);
 		goto err;
 	}
 
-	BTD("ADL %s(), g_bteut_testmode = %d, g_bteut_runing = %d, value = %d\n", __func__,
+	BT_LOG("ADL %s(), g_bteut_testmode = %d, g_bteut_runing = %d, value = %d\n", __func__,
 			(int)g_bteut_testmode, (int)g_bteut_runing, g_bteut_rx.rxgain.value);
 	if (BTEUT_TESTMODE_ENTER_EUT == g_bteut_testmode && BTEUT_EUT_RUNNING_ON == g_bteut_runing) {
 		unsigned char buf[1] = { 0x00 };
 
 		buf[0] = (unsigned char)g_bteut_rx.rxgain.value;
 		ret = engpc_bt_dut_mode_send(HCI_DUT_SET_RXGIAN, buf, 1);
-		BTD("ADL %s(), callED dut_mode_send(HCI_DUT_SET_RXGIAN), ret = %d\n", __func__, ret);
+		BT_LOG("ADL %s(), callED dut_mode_send(HCI_DUT_SET_RXGIAN), ret = %d\n", __func__, ret);
 
 		if (0 != ret) {
-			BTD("ADL %s(), call dut_mode_send() is ERROR, goto err\n", __func__);
+			BT_LOG("ADL %s(), call dut_mode_send() is ERROR, goto err\n", __func__);
 			goto err;
 		}
 	}
@@ -1536,14 +1523,14 @@ int bt_rxgain_set(bteut_gain_mode mode, unsigned int value, char *rsp) {
 			BT_EUT_COMMAND_RSP_MAX_LEN);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -1567,7 +1554,7 @@ int bt_rxgain_get(char *rsp) {
 	bteut_gain_mode mode = BTEUT_GAIN_MODE_INVALID;
 	mode = g_bteut_rx.rxgain.mode;
 
-	BTD("ADL entry %s(), mode = %d\n", __func__, mode);
+	BT_LOG("ADL entry %s(), mode = %d\n", __func__, mode);
 
 	if (BTEUT_GAIN_MODE_FIX == mode) {
 		snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%d,%d",
@@ -1577,20 +1564,20 @@ int bt_rxgain_get(char *rsp) {
 		snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%d",
 				(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_RXGAIN_REQ_RET : BT_RXGAIN_REQ_RET), mode);
 	} else {
-		BTE("unknow rx gain mode: %d\n", mode);
+		BT_LOG("unknow rx gain mode: %d\n", mode);
 		goto err;
 	}
 
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -1600,7 +1587,7 @@ int bt_phy_set(bteut_cmd_type cmd_type, int phy, char *rsp) {
 	} else if (BTEUT_CMD_TYPE_RX == cmd_type) {
 		g_bteut_rx.phy = phy;
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1614,7 +1601,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1628,7 +1615,7 @@ int bt_phy_get(bteut_cmd_type cmd_type, char *rsp) {
 			BLE_RX_PHY_REQ_RET,
 			g_bteut_rx.phy);
 	} else {
-		BTE("unknow transmission orientation: %d\n", cmd_type);
+		BT_LOG("unknow transmission orientation: %d\n", cmd_type);
 		goto err;
 	}
 
@@ -1639,7 +1626,7 @@ err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("Failure, Response: %s\n", rsp);
+	BT_LOG("Failure, Response: %s\n", rsp);
 	return -1;
 }
 
@@ -1709,7 +1696,7 @@ int bt_tx_set(int on_off, int instru_tx_mode, unsigned int pktcnt, char *rsp) {
 	char is_ble = 0;
 	char instru_type = (char)(instru_tx_mode >> 8);
 
-	BTD("on_off = %d, tx_mode = %d, pktcnt = %d, g_bt_mode = %d\n",
+	BT_LOG("on_off = %d, tx_mode = %d, pktcnt = %d, g_bt_mode = %d\n",
 			on_off, (int)instru_tx_mode, pktcnt, g_bt_mode);
 
 	if (BTEUT_BT_MODE_CLASSIC == g_bt_mode) {
@@ -1717,22 +1704,22 @@ int bt_tx_set(int on_off, int instru_tx_mode, unsigned int pktcnt, char *rsp) {
 	} else if (BTEUT_BT_MODE_BLE == g_bt_mode) {
 		is_ble = 1;
 	} else if (BTEUT_BT_MODE_OFF == g_bt_mode) {
-		BTD("g_bt_mode is ERROR, g_bt_mode = %d, goto err;\n", g_bt_mode);
+		BT_LOG("g_bt_mode is ERROR, g_bt_mode = %d, goto err;\n", g_bt_mode);
 		goto err;
 	}
 
-	BTD("instru_type = %x\n", instru_type);
+	BT_LOG("instru_type = %x\n", instru_type);
 	g_bteut_tx.pkttype |= (int)instru_type << 8;
 
-	BTD("on_off = %d, is_ble = %d\n", on_off, is_ble);
+	BT_LOG("on_off = %d, is_ble = %d\n", on_off, is_ble);
 	if (0 == on_off) {
 		if (BTEUT_TXRX_STATUS_TXING != g_bteut_txrx_status) {
-			BTD("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
+			BT_LOG("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
 				g_bteut_txrx_status);
 			goto err;
 		}
 
-		BTD("ADL %s(), call set_nonsig_tx_testmode(), enable = 0, is_ble = %d, "
+		BT_LOG("ADL %s(), call set_nonsig_tx_testmode(), enable = 0, is_ble = %d, "
 				"g_bt_mode = %d, the rest of other parameters all 0.\n",
 				__func__, is_ble, g_bt_mode);
 
@@ -1742,22 +1729,22 @@ int bt_tx_set(int on_off, int instru_tx_mode, unsigned int pktcnt, char *rsp) {
 			ret = engpc_bt_set_nonsig_tx_testmode(0, is_ble, 0, 0, 0, 0, 0, 0, 0);
 		}
 
-		BTD("ADL %s(), called set_nonsig_tx_testmode(), ret = %d\n", __func__, ret);
+		BT_LOG("ADL %s(), called set_nonsig_tx_testmode(), ret = %d\n", __func__, ret);
 
 		if (0 == ret) {
 			g_bteut_txrx_status = BTEUT_TXRX_STATUS_OFF;
 		} else {
-			BTD("ADL %s(), called set_nonsig_tx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
+			BT_LOG("ADL %s(), called set_nonsig_tx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
 			goto err;
 		}
 	} else if (1 == on_off) {
 		if (BTEUT_TXRX_STATUS_OFF != g_bteut_txrx_status) {
-			BTD("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
+			BT_LOG("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
 					g_bteut_txrx_status);
 			goto err;
 		}
 
-		BTD("ADL %s(), call set_nonsig_tx_testmode(), enable = 1, le = %d, pattern "
+		BT_LOG("ADL %s(), call set_nonsig_tx_testmode(), enable = 1, le = %d, pattern "
 				"= %d, channel = %d, pac_type = %d, pac_len = %d, pwr_type = %d, "
 				"pwr_value = %d, pkt_cnt = %d\n",
 				__func__, is_ble, (int)g_bteut_tx.pattern, g_bteut_tx.channel, g_bteut_tx.pkttype,
@@ -1772,16 +1759,16 @@ int bt_tx_set(int on_off, int instru_tx_mode, unsigned int pktcnt, char *rsp) {
 				g_bteut_tx.pktlen, g_bteut_tx.txpwr.power_type, g_bteut_tx.txpwr.power_value, pktcnt);
 		}
 
-		BTD("ADL %s(), called set_nonsig_tx_testmode(), ret = %d\n", __func__, ret);
+		BT_LOG("ADL %s(), called set_nonsig_tx_testmode(), ret = %d\n", __func__, ret);
 
 		if (0 == ret) {
 			g_bteut_txrx_status = BTEUT_TXRX_STATUS_TXING;
 		} else {
-			BTD("ADL %s(), called set_nonsig_tx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
+			BT_LOG("ADL %s(), called set_nonsig_tx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
 			goto err;
 		}
 	} else {
-		BTD("ADL %s(), on_off's value is ERROR, goto err\n", __func__);
+		BT_LOG("ADL %s(), on_off's value is ERROR, goto err\n", __func__);
 		goto err;
 	}
 
@@ -1789,14 +1776,14 @@ int bt_tx_set(int on_off, int instru_tx_mode, unsigned int pktcnt, char *rsp) {
 			BT_EUT_COMMAND_RSP_MAX_LEN);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -1817,27 +1804,27 @@ err:
 ********************************************************************/
 int bt_tx_get(char *rsp) {
 	bteut_txrx_status bt_txrx_status = g_bteut_txrx_status;
-	BTD("ADL entry %s(), \n", __func__);
+	BT_LOG("ADL entry %s(), \n", __func__);
 
 	if (BTEUT_TXRX_STATUS_OFF == bt_txrx_status || BTEUT_TXRX_STATUS_TXING == bt_txrx_status) {
 		snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%d",
 				(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_TX_REQ_RET : BT_TX_REQ_RET),
 				(int)bt_txrx_status);
 	} else {
-		BTD("ADL %s(), g_bteut_status is ERROR, bt_txrx_status = %d\n", __func__, bt_txrx_status);
+		BT_LOG("ADL %s(), g_bteut_status is ERROR, bt_txrx_status = %d\n", __func__, bt_txrx_status);
 		goto err;
 	}
 
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -1863,25 +1850,25 @@ int bt_rx_set(int on_off, char *rsp) {
 	char is_ble = 0;
 	bt_bdaddr_t addr = {{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-	BTD("ADL entry %s(), on_off = %d\n", __func__, on_off);
+	BT_LOG("ADL entry %s(), on_off = %d\n", __func__, on_off);
 
 	if (BTEUT_BT_MODE_CLASSIC == g_bt_mode) {
 		is_ble = 0;
 	} else if (BTEUT_BT_MODE_BLE == g_bt_mode) {
 		is_ble = 1;
 	} else if (BTEUT_BT_MODE_OFF == g_bt_mode) {
-		BTD("ADL %s(), g_bt_mode is ERROR, g_bt_mode = %d, goto err;\n", __func__, g_bt_mode);
+		BT_LOG("ADL %s(), g_bt_mode is ERROR, g_bt_mode = %d, goto err;\n", __func__, g_bt_mode);
 		goto err;
 	}
 
 	if (0 == on_off) {
 		if (BTEUT_TXRX_STATUS_RXING != g_bteut_txrx_status) {
-			BTD("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
+			BT_LOG("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
 					g_bteut_txrx_status);
 			goto err;
 		}
 
-		BTD("ADL %s(), call set_nonsig_rx_testmode(), enable = 0, le = 0, the rest "
+		BT_LOG("ADL %s(), call set_nonsig_rx_testmode(), enable = 0, le = 0, the rest "
 				"of other parameters all 0.\n",
 				__func__);
 
@@ -1891,19 +1878,19 @@ int bt_rx_set(int on_off, char *rsp) {
 			ret = engpc_bt_set_nonsig_rx_testmode(0, is_ble, 0, 0, 0, 0, &addr);
 		}
 
-		BTD("ADL %s(), called set_nonsig_rx_testmode(), ret = %d\n", __func__, ret);
+		BT_LOG("ADL %s(), called set_nonsig_rx_testmode(), ret = %d\n", __func__, ret);
 
 		if (0 == ret) {
 			g_bteut_txrx_status = BTEUT_TXRX_STATUS_OFF;
 		} else {
-			BTD("ADL %s(), called set_nonsig_rx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
+			BT_LOG("ADL %s(), called set_nonsig_rx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
 			goto err;
 		}
 	} else if (1 == on_off) {
 		int rxgain_value = 0;
 
 		if (BTEUT_TXRX_STATUS_OFF != g_bteut_txrx_status) {
-			BTD("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
+			BT_LOG("ADL %s(), g_bteut_status is ERROR, g_bteut_txrx_status = %d\n", __func__,
 					g_bteut_txrx_status);
 			goto err;
 		}
@@ -1915,7 +1902,7 @@ int bt_rx_set(int on_off, char *rsp) {
 		}
 
 		bt_str2bd(g_bteut_rx.addr, &addr);
-		BTD("ADL %s(), call set_nonsig_rx_testmode(), enable = 1, le = 0, pattern "
+		BT_LOG("ADL %s(), call set_nonsig_rx_testmode(), enable = 1, le = 0, pattern "
 				"= %d, channel = %d, pac_type = %d, rxgain_value = %d, addr = %s\n",
 				__func__, (int)g_bteut_rx.pattern, g_bteut_rx.channel, g_bteut_rx.pkttype,
 				rxgain_value, g_bteut_rx.addr);
@@ -1928,16 +1915,16 @@ int bt_rx_set(int on_off, char *rsp) {
 												g_bteut_rx.pkttype, rxgain_value, &addr);
 		}
 
-		BTD("ADL %s(), called set_nonsig_rx_testmode(), ret = %d\n", __func__, ret);
+		BT_LOG("ADL %s(), called set_nonsig_rx_testmode(), ret = %d\n", __func__, ret);
 
 		if (0 == ret) {
 			g_bteut_txrx_status = BTEUT_TXRX_STATUS_RXING;
 		} else if (0 != ret) {
-			BTD("ADL %s(), called set_nonsig_rx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
+			BT_LOG("ADL %s(), called set_nonsig_rx_testmode(), ret is ERROR, ret = %d\n", __func__, ret);
 			goto err;
 		}
 	} else {
-		BTD("ADL %s(), on_off's value is ERROR, goto err\n", __func__);
+		BT_LOG("ADL %s(), on_off's value is ERROR, goto err\n", __func__);
 		goto err;
 	}
 
@@ -1945,14 +1932,14 @@ int bt_rx_set(int on_off, char *rsp) {
 			BT_EUT_COMMAND_RSP_MAX_LEN);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return 0\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -1973,27 +1960,27 @@ err:
 ********************************************************************/
 int bt_rx_get(char *rsp) {
 	bteut_txrx_status bt_txrx_status = g_bteut_txrx_status;
-	BTD("ADL entry %s(), \n", __func__);
+	BT_LOG("ADL entry %s(), \n", __func__);
 
 	if (BTEUT_TXRX_STATUS_OFF == bt_txrx_status || BTEUT_TXRX_STATUS_RXING == bt_txrx_status) {
 		snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%d",
 				(BTEUT_BT_MODE_BLE == g_bt_mode ? BLE_RX_REQ_RET : BT_RX_REQ_RET),
 				(int)bt_txrx_status);
 	} else {
-		BTD("ADL %s(), bt_txrx_status is ERROR, bt_txrx_status = %d\n", __func__, bt_txrx_status);
+		BT_LOG("ADL %s(), bt_txrx_status is ERROR, bt_txrx_status = %d\n", __func__, bt_txrx_status);
 		goto err;
 	}
 
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 
@@ -2015,10 +2002,10 @@ err:
 int bt_rxdata_get(char *rsp) {
 	int ret = -1;
 	bteut_txrx_status bt_txrx_status = g_bteut_txrx_status;
-	BTD("ADL entry %s(), rf_status = %d, g_bteut_testmode = %d, g_bteut_runing = %d\n",
+	BT_LOG("ADL entry %s(), rf_status = %d, g_bteut_testmode = %d, g_bteut_runing = %d\n",
 			__func__, bt_txrx_status, g_bteut_testmode, (int)g_bteut_runing);
 
-	BTD("ADL %s(), g_bt_mode = %d\n", __func__, g_bt_mode);
+	BT_LOG("ADL %s(), g_bt_mode = %d\n", __func__, g_bt_mode);
 	if (BTEUT_TESTMODE_ENTER_NONSIG == g_bteut_testmode) {
 		char buf[255] = { 0 };
 		uint16_t result_len = 0;
@@ -2037,36 +2024,36 @@ int bt_rxdata_get(char *rsp) {
 				ble = 1;
 			}
 
-			BTD("ADL %s(), call engpc_bt_get_nonsig_rx_data(), ble = %d\n", __func__, ble);
+			BT_LOG("ADL %s(), call engpc_bt_get_nonsig_rx_data(), ble = %d\n", __func__, ble);
 
 			ret = engpc_bt_get_nonsig_rx_data(ble, buf, sizeof(buf), &result_len);
 			if (!memcmp(buf, OK_STR, strlen(OK_STR))) {
-				BTD("memcpy OK_STR\n");
+				BT_LOG("memcpy OK_STR\n");
 				uki_sscanf(buf, "OK rssi:%d, pkt_cnt:%d, pkt_err_cnt:%d, bit_cnt:%d, "
 						"bit_err_cnt:%d",
 						&rssi, &pkt_cnt, &pkt_err_cnt, &bit_cnt, &bit_err_cnt);
 			} else if (!memcmp(buf, FAIL_STR, strlen(FAIL_STR))) {
-				BTD("memcpy FAIL_STR\n");
+				BT_LOG("memcpy FAIL_STR\n");
 				return -1;
 			} else {
-				BTD("memcpy else\n");
+				BT_LOG("memcpy else\n");
 				return -1;
 			}
 
-			BTD("ADL %s(), called engpc_bt_get_nonsig_rx_data(), ret = %d\n", __func__, ret);
+			BT_LOG("ADL %s(), called engpc_bt_get_nonsig_rx_data(), ret = %d\n", __func__, ret);
 
 			if (0 != ret) {
-				BTD("ADL %s(), call engpc_bt_get_nonsig_rx_data() is ERROR, ret = %d, goto err\n",
+				BT_LOG("ADL %s(), call engpc_bt_get_nonsig_rx_data() is ERROR, ret = %d, goto err\n",
 						__func__, ret);
 				goto err;
 			}
 		} else {
-			BTD("ADL %s(), rf_status is ERROR, ret = %d, goto err\n", __func__, bt_txrx_status);
+			BT_LOG("ADL %s(), rf_status is ERROR, ret = %d, goto err\n", __func__, bt_txrx_status);
 			goto err;
 		}
 
 		if (result_len <= 0) {
-			BTD("ADL %s(), result_len = %d, goto err\n", __func__, result_len);
+			BT_LOG("ADL %s(), result_len = %d, goto err\n", __func__, result_len);
 			goto err;
 		}
 		snprintf(rsp, BT_EUT_COMMAND_RSP_MAX_LEN, "%s%d,%d,%d,%d,%d",
@@ -2081,26 +2068,26 @@ int bt_rxdata_get(char *rsp) {
 		int rssi= 0;
 		int rx_status= 0;
 		if (!memcmp(buf, OK_STR, strlen(OK_STR))) {
-			BTD("memcpy OK_STR\n");
+			BT_LOG("memcpy OK_STR\n");
 			uki_sscanf(buf, "OK HCI_DUT_GET_RXDATA status:%d, rssi:%d", &rx_status, &rssi);
 		} else if (!memcmp(buf, FAIL_STR, strlen(FAIL_STR))) {
-			BTD("memcpy FAIL_STR\n");
+			BT_LOG("memcpy FAIL_STR\n");
 			return -1;
 		} else {
-			BTD("memcpy else\n");
+			BT_LOG("memcpy else\n");
 			return -1;
 		}
 
-		BTD("ADL %s(), callED dut_mode_send(HCI_DUT_GET_RXDATA), ret = %d\n", __func__, ret);
+		BT_LOG("ADL %s(), callED dut_mode_send(HCI_DUT_GET_RXDATA), ret = %d\n", __func__, ret);
 
 		if (0 != ret) {
-			BTD("ADL %s(), callED dut_mode_send(HCI_DUT_GET_RXDATA) is ERROR, ret = %d, goto err\n",
+			BT_LOG("ADL %s(), callED dut_mode_send(HCI_DUT_GET_RXDATA) is ERROR, ret = %d, goto err\n",
 					__func__, ret);
 			goto err;
 		}
 
 		if (result_len <= 0) {
-			BTD("ADL %s(), result_len = %d, goto err\n", __func__, result_len);
+			BT_LOG("ADL %s(), result_len = %d, goto err\n", __func__, result_len);
 			goto err;
 		}
 
@@ -2109,14 +2096,14 @@ int bt_rxdata_get(char *rsp) {
 	}
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s\n", __func__, rsp);
 	return 0;
 
 err:
 	bt_build_err_resp(rsp);
 	RESPONSE_DUMP(rsp);
 
-	BTD("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
+	BT_LOG("ADL leaving %s(), rsp = %s, return -1\n", __func__, rsp);
 	return -1;
 }
 

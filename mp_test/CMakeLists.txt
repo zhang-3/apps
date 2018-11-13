@@ -6,3 +6,4 @@ target_sources(app PRIVATE main.c)
 
 add_subdirectory(engpc)
 add_subdirectory(iwnpi)
+add_subdirectory(bt_test)

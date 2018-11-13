@@ -1,5 +1,11 @@
-#ifndef __LIBBT_SPRD_BT_NPI_H__
-#define __LIBBT_SPRD_BT_NPI_H__
+/*
+ * Copyright (c) 2018, UNISOC Incorporated
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#ifndef __BT_TEST_BT_NPI_H__
+#define __BT_TEST_BT_NPI_H__
 
 #include "stdio.h"
 #include "stdlib.h"

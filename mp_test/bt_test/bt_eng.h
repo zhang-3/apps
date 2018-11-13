@@ -1,5 +1,11 @@
-#ifndef __LIBBT_SPRD_BT_ENG_H__
-#define __LIBBT_SPRD_BT_ENG_H__
+/*
+ * Copyright (c) 2018, UNISOC Incorporated
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#ifndef __BT_TEST_BT_ENG_H__
+#define __BT_TEST_BT_ENG_H__
 
 /*
 **  Definitions for HCI groups
@@ -70,6 +76,11 @@ typedef struct {
 	uint16_t param_len;
 	uint8_t* p_param_buf;
 } hci_cmd_complete_t;
+
+struct bt_driver {
+	int (*open)(void);
+	int (*send)(unsigned char *data, int len);
+};
 
 struct bt_npi_dev {
 	u16_t last_cmd;

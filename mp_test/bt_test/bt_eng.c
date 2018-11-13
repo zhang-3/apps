@@ -1,20 +1,9 @@
-/******************************************************************************
+/*
+ * Copyright (c) 2018, UNISOC Incorporated
  *
- *  Copyright (C) 2018 Spreadtrum Corporation
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at:
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- ******************************************************************************/
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <zephyr/types.h>
 #include <errno.h>
 #include <stdio.h>
@@ -27,7 +16,8 @@
 #include <bluetooth/hci.h>
 
 #include "bt_eng.h"
-#include "../../../../drivers/bluetooth/unisoc/uki_utlis.h"
+#include "bt_utlis.h"
+#include "../../..//zephyr/ext/hal/unisoc/uwp5661/drivers/src/bt/bt_configure.h"
 
 struct bt_npi_dev bt_npi_dev = {
 	.sync      = _K_SEM_INITIALIZER(bt_npi_dev.sync, 0, 1),
@@ -45,6 +35,7 @@ typedef uint8_t LAP[LAP_LEN];
 #define BT_EVENT_MASK_LEN  8
 typedef uint8_t BT_EVENT_MASK[BT_EVENT_MASK_LEN];
 
+#define UINT32_TO_STREAM(p, u32) {*(p)++ = (uint8_t)(u32); *(p)++ = (uint8_t)((u32) >> 8); *(p)++ = (uint8_t)((u32) >> 16); *(p)++ = (uint8_t)((u32) >> 24);}
 #define UINT16_TO_STREAM(p, u16) {*(p)++ = (uint8_t)(u16); *(p)++ = (uint8_t)((u16) >> 8);}
 #define UINT8_TO_STREAM(p, u8)   {*(p)++ = (uint8_t)(u8);}
 #define DEVCLASS_TO_STREAM(p, a) {register int ijk; for (ijk = 0; ijk < DEV_CLASS_LEN;ijk++) *(p)++ = (uint8_t) a[DEV_CLASS_LEN - 1 - ijk];}
@@ -53,12 +44,217 @@ typedef uint8_t BT_EVENT_MASK[BT_EVENT_MASK_LEN];
 #define LAP_TO_STREAM(p, a)      {register int ijk; for (ijk = 0; ijk < LAP_LEN;      ijk++) *(p)++ = (uint8_t) a[LAP_LEN - 1 - ijk];}
 #define ARRAY8_TO_STREAM(p, a)   {register int ijk; for (ijk = 0; ijk < 8;            ijk++) *(p)++ = (uint8_t) a[7 - ijk];}
 
-extern int hwdec_write_align(unsigned char *data, int len);
-extern int get_disable_buf(void *buf);
-extern int get_enable_buf(void *buf);
-extern int marlin3_rf_preload(void *buf);
-extern int get_pskey_buf(void *buf);
-extern int marlin3_init(void);
+#define CMD_MAX_LEN 258
+
+enum { DUAL_MODE = 0, CLASSIC_MODE, LE_MODE };
+enum { DISABLE_BT = 0, ENABLE_BT };
+
+extern int bt_sipc_open(void);
+extern int bt_sipc_send(unsigned char *data, int len);
+
+static int bt_get_disable_buf(void *buf)
+{
+    uint8_t *p, msg_req[CMD_MAX_LEN];
+    int size;
+
+    p = msg_req;
+
+    UINT16_TO_STREAM(p, DUAL_MODE);
+    UINT8_TO_STREAM(p, DISABLE_BT);
+    size = p - msg_req;
+    memcpy(buf, msg_req, size);
+    return size;
+}
+
+static int bt_get_enable_buf(void *buf)
+{
+    uint8_t *p, msg_req[CMD_MAX_LEN];
+    int size;
+
+    p = msg_req;
+
+    UINT16_TO_STREAM(p, DUAL_MODE);
+    UINT8_TO_STREAM(p, ENABLE_BT);
+    size = p - msg_req;
+    memcpy(buf, msg_req, size);
+    return size;
+}
+
+static int bt_get_rf_buf(void *buf)
+{
+    uint8_t *p, msg_req[CMD_MAX_LEN];
+    int i, size;
+
+    p = msg_req;
+
+    for (i = 0; i < 6; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_GainValue_A[i]);
+    }
+
+    for (i = 0; i < 10; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_ClassicPowerValue_A[i]);
+    }
+
+    for (i = 0; i < 16; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEPowerValue_A[i]);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_BRChannelpwrvalue_A[i]);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_EDRChannelpwrvalue_A[i]);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEChannelpwrvalue_A[i]);
+    }
+
+    for (i = 0; i < 6; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_GainValue_B[i]);
+    }
+
+    for (i = 0; i < 10; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_ClassicPowerValue_B[i]);
+    }
+
+
+    for (i = 0; i < 16; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEPowerValue_B[i]);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_BRChannelpwrvalue_B[i]);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_EDRChannelpwrvalue_B[i]);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEChannelpwrvalue_B[i]);
+    }
+
+    UINT16_TO_STREAM(p, marlin3_rf_config.LE_fix_powerword);
+
+    UINT8_TO_STREAM(p, marlin3_rf_config.Classic_pc_by_channel);
+    UINT8_TO_STREAM(p, marlin3_rf_config.LE_pc_by_channel);
+    UINT8_TO_STREAM(p, marlin3_rf_config.RF_switch_mode);
+    UINT8_TO_STREAM(p, marlin3_rf_config.Data_Capture_Mode);
+    UINT8_TO_STREAM(p, marlin3_rf_config.Analog_IQ_Debug_Mode);
+    UINT8_TO_STREAM(p, marlin3_rf_config.RF_common_rfu_b3);
+
+    for (i = 0; i < 5; i++) {
+        UINT32_TO_STREAM(p, marlin3_rf_config.RF_common_rfu_w[i]);
+    }
+
+    size = p - msg_req;
+    memcpy(buf, msg_req, size);
+    return size;
+}
+
+
+static int bt_get_pskey_buf(void *buf)
+{
+    uint8_t *p, msg_req[CMD_MAX_LEN];
+    int i, size;
+
+    p = msg_req;
+    UINT32_TO_STREAM(p, marlin3_pskey.device_class);
+
+    for (i = 0; i < 16; i++) {
+        UINT8_TO_STREAM(p, marlin3_pskey.feature_set[i]);
+    }
+
+    for (i = 0; i < 6; i++) {
+        UINT8_TO_STREAM(p, marlin3_pskey.device_addr[i]);
+    }
+
+    UINT16_TO_STREAM(p, marlin3_pskey.comp_id);
+    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_uart0_communication_supported);
+    UINT8_TO_STREAM(p, marlin3_pskey.cp2_log_mode);
+    UINT8_TO_STREAM(p, marlin3_pskey.LogLevel);
+    UINT8_TO_STREAM(p, marlin3_pskey.g_central_or_perpheral);
+
+    UINT16_TO_STREAM(p, marlin3_pskey.Log_BitMask);
+    UINT8_TO_STREAM(p, marlin3_pskey.super_ssp_enable);
+    UINT8_TO_STREAM(p, marlin3_pskey.common_rfu_b3);
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.common_rfu_w[i]);
+    }
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.le_rfu_w[i]);
+    }
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.lmp_rfu_w[i]);
+    }
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.lc_rfu_w[i]);
+    }
+
+    UINT16_TO_STREAM(p, marlin3_pskey.g_wbs_nv_117);
+    UINT16_TO_STREAM(p, marlin3_pskey.g_wbs_nv_118);
+    UINT16_TO_STREAM(p, marlin3_pskey.g_nbv_nv_117);
+    UINT16_TO_STREAM(p, marlin3_pskey.g_nbv_nv_118);
+
+    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sco_transmit_mode);
+    UINT8_TO_STREAM(p, marlin3_pskey.audio_rfu_b1);
+    UINT8_TO_STREAM(p, marlin3_pskey.audio_rfu_b2);
+    UINT8_TO_STREAM(p, marlin3_pskey.audio_rfu_b3);
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.audio_rfu_w[i]);
+    }
+
+    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sleep_in_standby_supported);
+    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sleep_master_supported);
+    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sleep_slave_supported);
+    UINT8_TO_STREAM(p, marlin3_pskey.power_rfu_b1);
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.power_rfu_w[i]);
+    }
+
+    UINT32_TO_STREAM(p, marlin3_pskey.win_ext);
+
+    UINT8_TO_STREAM(p, marlin3_pskey.edr_tx_edr_delay);
+    UINT8_TO_STREAM(p, marlin3_pskey.edr_rx_edr_delay);
+    UINT8_TO_STREAM(p, marlin3_pskey.tx_delay);
+    UINT8_TO_STREAM(p, marlin3_pskey.rx_delay);
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.bb_rfu_w[i]);
+    }
+
+    UINT8_TO_STREAM(p, marlin3_pskey.agc_mode);
+    UINT8_TO_STREAM(p, marlin3_pskey.diff_or_eq);
+    UINT8_TO_STREAM(p, marlin3_pskey.ramp_mode);
+    UINT8_TO_STREAM(p, marlin3_pskey.modem_rfu_b1);
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.modem_rfu_w[i]);
+    }
+
+    UINT32_TO_STREAM(p, marlin3_pskey.BQB_BitMask_1);
+    UINT32_TO_STREAM(p, marlin3_pskey.BQB_BitMask_2);
+
+    for (i = 0; i < 8; i++) {
+        UINT16_TO_STREAM(p, marlin3_pskey.bt_coex_threshold[i]);
+    }
+
+    for (i = 0; i < 2; i++) {
+        UINT32_TO_STREAM(p, marlin3_pskey.other_rfu_w[i]);
+    }
+
+    size = p - msg_req;
+    memcpy(buf, msg_req, size);
+    return size;
+}
 
 static void cmd_complete_handle(unsigned char *data, u8_t total_len)
 {
@@ -66,10 +262,10 @@ static void cmd_complete_handle(unsigned char *data, u8_t total_len)
 	u16_t opcode = sys_le16_to_cpu(evt->opcode);
 	u8_t evt_len = sizeof(struct bt_hci_evt_cmd_complete);
 
-	BTD("%s, opcode 0x%04x\n", __func__, opcode);
+	BT_LOG("%s, opcode 0x%04x\n", __func__, opcode);
 
 	if (bt_npi_dev.last_cmd != opcode) {
-		BTD("OpCode 0x%04x completed instead of expected 0x%04x\n",
+		BT_LOG("OpCode 0x%04x completed instead of expected 0x%04x\n",
 			opcode, bt_npi_dev.last_cmd);
 		return;
 	}
@@ -86,10 +282,10 @@ static void cmd_status_handle(unsigned char *data)
 	struct bt_hci_evt_cmd_status *evt = (void *)data;
 	u16_t opcode = sys_le16_to_cpu(evt->opcode);
 
-	BTD("%s, opcode 0x%04x\n", __func__, opcode);
+	BT_LOG("%s, opcode 0x%04x\n", __func__, opcode);
 
 	if (bt_npi_dev.last_cmd != opcode) {
-		BTD("OpCode 0x%04x completed instead of expected 0x%04x\n",
+		BT_LOG("OpCode 0x%04x completed instead of expected 0x%04x\n",
 			opcode, bt_npi_dev.last_cmd);
 		return;
 	}
@@ -103,15 +299,15 @@ static void cmd_status_handle(unsigned char *data)
 
 void bt_npi_recv(unsigned char *data, int len)
 {
-	BTD("%s\n", __func__);
+	BT_LOG("%s\n", __func__);
 	u8_t packet_type;
 	u8_t hci_evt;
 
-	BTD("%s, len = %d\n", __func__,len);
+	BT_LOG("%s, len = %d\n", __func__,len);
 
 	packet_type = data[0];
 	hci_evt = data[1];
-	BTD("%s, packet_type = 0x%02x,hci_evt = 0x%02x\n", __func__,packet_type,hci_evt);
+	BT_LOG("%s, packet_type = 0x%02x,hci_evt = 0x%02x\n", __func__,packet_type,hci_evt);
 
 	switch (packet_type) {
 	case HCI_EVT:
@@ -148,15 +344,14 @@ int hci_cmd_send_sync(u16_t cmd, u8_t *payload, u8_t len)
 		*p++ = len;
 		memcpy(p, payload, len);
 
-		HCIDUMP("-> ", p_buf, cmd_len);
-		hwdec_write_align(p_buf,cmd_len);
+		bt_sipc_send(p_buf,cmd_len);
 		k_free(p_buf);
 		bt_npi_dev.last_cmd = cmd;
 		err = k_sem_take(&bt_npi_dev.sync,CMD_TIMEOUT);
 		__ASSERT(err == 0, "k_sem_take failed with err %d", err);
 		return 0;
 	}else{
-		BTD("k_calloc fail\n");
+		BT_LOG("k_calloc fail\n");
 		return -1;
 	}
 }
@@ -165,34 +360,36 @@ void vendor_init()
 {
 	int size;
 	char data[256] = {0};
-	marlin3_init();
 
-	BTD("send pskey\n");
-	size = get_pskey_buf(data);
+	BT_LOG("send pskey\n");
+	size = bt_get_pskey_buf(data);
 	hci_cmd_send_sync(HCI_OP_PSKEY,data,size);
 
-	BTD("send rfkey\n");
-	size = marlin3_rf_preload(data);
+	BT_LOG("send rfkey\n");
+	size = bt_get_rf_buf(data);
 	hci_cmd_send_sync(HCI_OP_RF,data,size);
 
-	BTD("send enable\n");
-	size = get_enable_buf(data);
+	BT_LOG("send enable\n");
+	size = bt_get_enable_buf(data);
 	hci_cmd_send_sync(HCI_OP_ENABLE,data,size);
 }
 
 int engpc_bt_on(void) {
-	BTD("%s\n",__func__);
+	BT_LOG("%s\n",__func__);
+
+	bt_sipc_open();
+
 	vendor_init();
 	return 0;
 }
 
 int engpc_bt_off(void) {
-	BTD("%s\n",__func__);
+	BT_LOG("%s\n",__func__);
 	int size;
 	char data[256] = {0};
 
-	BTD("send disable\n");
-	size = get_disable_buf(data);
+	BT_LOG("send disable\n");
+	size = bt_get_disable_buf(data);
 	hci_cmd_send_sync(HCI_OP_ENABLE,data,size);
 	return 0;
 }
@@ -291,7 +488,7 @@ int dut_mode_enable(void)
 	uint8_t scan_mode = HCI_PAGE_SCAN_ENABLED;
 	uint8_t general_inq_lap[3] = {0x9e,0x8b,0x33};
 
-	BTD("BTM: BTM_EnableTestMode\n");
+	BT_LOG("BTM: BTM_EnableTestMode\n");
 
 	if (!btsnd_hcic_set_event_filter(HCI_FILTER_CONNECTION_SETUP,
 									HCI_FILTER_COND_NEW_DEVICE,
@@ -335,18 +532,18 @@ int engpc_bt_set_nonsig_tx_testmode(uint16_t enable,
 	uint16_t power_value, uint16_t pac_cnt)
 {
 	uint16_t opcode;
-	BTD("%s\n", __FUNCTION__);
+	BT_LOG("%s\n", __FUNCTION__);
 
-	BTD("enable  : %X\n", enable);
-	BTD("le      : %X\n", le);
+	BT_LOG("enable  : %X\n", enable);
+	BT_LOG("le      : %X\n", le);
 
-	BTD("pattern : %X\n", pattern);
-	BTD("channel : %X\n", channel);
-	BTD("pac_type: %X\n", pac_type);
-	BTD("pac_len : %X\n", pac_len);
-	BTD("power_type   : %X\n", power_type);
-	BTD("power_value  : %X\n", power_value);
-	BTD("pac_cnt      : %X\n", pac_cnt);
+	BT_LOG("pattern : %X\n", pattern);
+	BT_LOG("channel : %X\n", channel);
+	BT_LOG("pac_type: %X\n", pac_type);
+	BT_LOG("pac_len : %X\n", pac_len);
+	BT_LOG("power_type   : %X\n", power_type);
+	BT_LOG("power_value  : %X\n", power_value);
+	BT_LOG("pac_cnt      : %X\n", pac_cnt);
 
 	if(enable){
 		opcode = le ? NONSIG_LE_TX_ENABLE : NONSIG_TX_ENABLE;
@@ -370,10 +567,10 @@ int engpc_bt_set_nonsig_tx_testmode(uint16_t enable,
 		buf[9] = (uint8_t)(pac_cnt & 0x00FF);
 		buf[10] = (uint8_t)((pac_cnt & 0xFF00) >> 8);
 
-		BTD("send hci cmd, opcode = 0x%X\n", opcode);
+		BT_LOG("send hci cmd, opcode = 0x%X\n", opcode);
 		hci_cmd_send_sync(opcode, buf, sizeof(buf));
 	}else{/* disable */
-		BTD("send hci cmd, opcode = 0x%X\n",opcode);
+		BT_LOG("send hci cmd, opcode = 0x%X\n",opcode);
 		hci_cmd_send_sync(opcode, NULL, 0);
 	}
 	return 0;
@@ -384,16 +581,16 @@ int engpc_bt_set_nonsig_rx_testmode(uint16_t enable,
 	uint16_t pac_type,uint16_t rx_gain, bt_bdaddr_t *addr)
 {
 	uint16_t opcode;
-	BTD("%s\n",__FUNCTION__);
+	BT_LOG("%s\n",__FUNCTION__);
 
-	BTD("enable  : %X\n",enable);
-	BTD("le      : %X\n",le);
+	BT_LOG("enable  : %X\n",enable);
+	BT_LOG("le      : %X\n",le);
 
-	BTD("pattern : %d\n",pattern);
-	BTD("channel : %d\n",channel);
-	BTD("pac_type: %d\n",pac_type);
-	BTD("rx_gain : %d\n",rx_gain);
-	BTD("addr    : %02X:%02X:%02X:%02X:%02X:%02X\n",
+	BT_LOG("pattern : %d\n",pattern);
+	BT_LOG("channel : %d\n",channel);
+	BT_LOG("pac_type: %d\n",pac_type);
+	BT_LOG("rx_gain : %d\n",rx_gain);
+	BT_LOG("addr    : %02X:%02X:%02X:%02X:%02X:%02X\n",
 		addr->address[0],addr->address[1],addr->address[2],
 		addr->address[3],addr->address[4],addr->address[5]);
 
@@ -442,9 +639,9 @@ static void handle_nonsig_rx_data(hci_cmd_complete_t *p, char *des, uint16_t *re
 	uint8_t *buf;
 	char data[255] = { 0 };
 
-	BTD("%s\n", __FUNCTION__);
-	BTD("opcode = 0x%X\n", p->opcode);
-	BTD("param_len = 0x%X\n", p->param_len);
+	BT_LOG("%s\n", __FUNCTION__);
+	BT_LOG("opcode = 0x%X\n", p->opcode);
+	BT_LOG("param_len = 0x%X\n", p->param_len);
 
 	if (p->param_len != 18) {
 		snprintf(data, sizeof(data), "%s %s", "FAIL", "response from controller is invalid");
@@ -459,7 +656,7 @@ static void handle_nonsig_rx_data(hci_cmd_complete_t *p, char *des, uint16_t *re
 	bit_cnt = *(uint32_t *)(buf + 10);
 	bit_err_cnt = *(uint32_t *)(buf + 14);
 
-	BTD("ret:0x%X, rssi:0x%X, pkt_cnt:0x%X, pkt_err_cnt:0x%X, bit_cnt:0x%X, pkt_err_cnt:0x%X\n",
+	BT_LOG("ret:0x%X, rssi:0x%X, pkt_cnt:0x%X, pkt_err_cnt:0x%X, bit_cnt:0x%X, pkt_err_cnt:0x%X\n",
 		result, rssi, pkt_cnt, pkt_err_cnt, bit_cnt, bit_err_cnt);
 
 	if(result == 0){
@@ -472,12 +669,12 @@ static void handle_nonsig_rx_data(hci_cmd_complete_t *p, char *des, uint16_t *re
 error:
 	*read_len = strlen(data);
 	memcpy(des, data, strlen(data));
-	BTD("get %d bytes %s\n", strlen(data), des);
+	BT_LOG("get %d bytes %s\n", strlen(data), des);
 }
 
 int engpc_bt_get_nonsig_rx_data(uint16_t le, char *buf, uint16_t buf_len, uint16_t *read_len)
 {
-	BTD("get_nonsig_rx_data LE=%d\n",le);
+	BT_LOG("get_nonsig_rx_data LE=%d\n",le);
 	uint16_t opcode;
 	hci_cmd_complete_t vcs_cplt_params;
 
@@ -496,7 +693,7 @@ int engpc_bt_le_enhanced_receiver(uint8_t channel, uint8_t phy, uint8_t modulati
 {
 	uint8_t buf[3];
 
-	BTD("%s channel: 0x%02x, phy: 0x%02x, modulation_index: 0x%02x\n", __func__, channel, phy, modulation_index);
+	BT_LOG("%s channel: 0x%02x, phy: 0x%02x, modulation_index: 0x%02x\n", __func__, channel, phy, modulation_index);
 	buf[0] = channel;
 	buf[1] = phy;
 	buf[2] = modulation_index;
@@ -508,7 +705,7 @@ int engpc_bt_le_enhanced_transmitter(uint8_t channel, uint8_t length, uint8_t pa
 {
 	uint8_t buf[4];
 
-	BTD("%s channel: 0x%02x, length: 0x%02x, payload: 0x%02x, phy: 0x%02x\n", __func__, channel, length, payload, phy);
+	BT_LOG("%s channel: 0x%02x, length: 0x%02x, payload: 0x%02x, phy: 0x%02x\n", __func__, channel, length, payload, phy);
 	buf[0] = channel;
 	buf[1] = length;
 	buf[2] = payload;
@@ -533,7 +730,7 @@ int engpc_bt_get_rf_path(void)
 	hci_cmd_send_sync(HCI_DUT_GET_RF_PATH, NULL, 0);
 	status = bt_npi_dev.data[0];
 	rf_path = bt_npi_dev.data[1];
-	BTD("%s, status = %d, rf_path = %d\n", __func__, status, rf_path);
+	BT_LOG("%s, status = %d, rf_path = %d\n", __func__, status, rf_path);
 	return rf_path;
 }
 
@@ -544,9 +741,9 @@ static void handle_dut_rx_data(hci_cmd_complete_t *p, char *des, uint16_t *read_
 	uint8_t rssi;
 	char data[255] = { 0 };
 
-	BTD("%s\n", __FUNCTION__);
-	BTD("opcode = 0x%X\n", p->opcode);
-	BTD("param_len = 0x%X\n", p->param_len);
+	BT_LOG("%s\n", __FUNCTION__);
+	BT_LOG("opcode = 0x%X\n", p->opcode);
+	BT_LOG("param_len = 0x%X\n", p->param_len);
 
 	if (p->param_len != 2) {
 		snprintf(data, sizeof(data), "%s %s", "FAIL", "response from controller is invalid");
@@ -557,7 +754,7 @@ static void handle_dut_rx_data(hci_cmd_complete_t *p, char *des, uint16_t *read_
 	status = *buf;
 	rssi = *(buf + 1);
 
-	BTD("status = %d, RSSI = %d\n", status, rssi);
+	BT_LOG("status = %d, RSSI = %d\n", status, rssi);
 
 	if(status == 0){
 		snprintf(data, sizeof(data), "%s HCI_DUT_GET_RXDATA status:%d, rssi:%d", "OK", status, rssi);
@@ -568,7 +765,7 @@ static void handle_dut_rx_data(hci_cmd_complete_t *p, char *des, uint16_t *read_
 error:
 	*read_len = strlen(data);
 	memcpy(des, data, strlen(data));
-	BTD("get %d bytes %s\n", strlen(data), des);
+	BT_LOG("get %d bytes %s\n", strlen(data), des);
 }
 
 int engpc_bt_dut_mode_get_rx_data(char *buf, uint16_t buf_len, uint16_t *read_len)
