@@ -1,0 +1,15 @@
+sample:
+  description: BT Mesh, based on UWP566X
+    application
+  name: mesh
+  platforms: all
+common:
+    tags: samples
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "Unisoc BT Mesh(.*)"
+tests:
+  sample.helloworld.multithread:
+    tags: samples
