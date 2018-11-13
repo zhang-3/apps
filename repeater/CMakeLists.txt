@@ -9,14 +9,14 @@ target_sources(app PRIVATE src/test.c)
 include_directories($ENV{ZEPHYR_BASE}/ext/hal/unisoc/)
 
 target_sources_ifdef(
-  CONFIG_BT
+  CONFIG_BT_UWP5661
   app PRIVATE
   src/bluetooth/blues.c
   src/bluetooth/throughput.c
   )
 
 target_sources_ifdef(
-  CONFIG_BT
+  CONFIG_BT_UWP5661
   app PRIVATE
   src/bluetooth/wifi_manager_service.c
   )

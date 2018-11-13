@@ -13,7 +13,9 @@ void main(void)
 {
 	LOG_INF("   [UNISOC Wi-Fi Repeater]\n");
 
+#ifdef CONFIG_BT_UWP5661
 	blues_init();
+#endif
 
 	while(1) {}
 }
