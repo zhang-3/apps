@@ -17,7 +17,6 @@
 
 #include "bt_eng.h"
 #include "bt_utlis.h"
-#include "../../..//zephyr/ext/hal/unisoc/uwp5661/drivers/src/bt/bt_configure.h"
 
 struct bt_npi_dev bt_npi_dev = {
 	.sync      = _K_SEM_INITIALIZER(bt_npi_dev.sync, 0, 1),
@@ -35,7 +34,6 @@ typedef uint8_t LAP[LAP_LEN];
 #define BT_EVENT_MASK_LEN  8
 typedef uint8_t BT_EVENT_MASK[BT_EVENT_MASK_LEN];
 
-#define UINT32_TO_STREAM(p, u32) {*(p)++ = (uint8_t)(u32); *(p)++ = (uint8_t)((u32) >> 8); *(p)++ = (uint8_t)((u32) >> 16); *(p)++ = (uint8_t)((u32) >> 24);}
 #define UINT16_TO_STREAM(p, u16) {*(p)++ = (uint8_t)(u16); *(p)++ = (uint8_t)((u16) >> 8);}
 #define UINT8_TO_STREAM(p, u8)   {*(p)++ = (uint8_t)(u8);}
 #define DEVCLASS_TO_STREAM(p, a) {register int ijk; for (ijk = 0; ijk < DEV_CLASS_LEN;ijk++) *(p)++ = (uint8_t) a[DEV_CLASS_LEN - 1 - ijk];}
@@ -44,217 +42,12 @@ typedef uint8_t BT_EVENT_MASK[BT_EVENT_MASK_LEN];
 #define LAP_TO_STREAM(p, a)      {register int ijk; for (ijk = 0; ijk < LAP_LEN;      ijk++) *(p)++ = (uint8_t) a[LAP_LEN - 1 - ijk];}
 #define ARRAY8_TO_STREAM(p, a)   {register int ijk; for (ijk = 0; ijk < 8;            ijk++) *(p)++ = (uint8_t) a[7 - ijk];}
 
-#define CMD_MAX_LEN 258
-
-enum { DUAL_MODE = 0, CLASSIC_MODE, LE_MODE };
-enum { DISABLE_BT = 0, ENABLE_BT };
-
 extern int bt_sipc_open(void);
 extern int bt_sipc_send(unsigned char *data, int len);
-
-static int bt_get_disable_buf(void *buf)
-{
-    uint8_t *p, msg_req[CMD_MAX_LEN];
-    int size;
-
-    p = msg_req;
-
-    UINT16_TO_STREAM(p, DUAL_MODE);
-    UINT8_TO_STREAM(p, DISABLE_BT);
-    size = p - msg_req;
-    memcpy(buf, msg_req, size);
-    return size;
-}
-
-static int bt_get_enable_buf(void *buf)
-{
-    uint8_t *p, msg_req[CMD_MAX_LEN];
-    int size;
-
-    p = msg_req;
-
-    UINT16_TO_STREAM(p, DUAL_MODE);
-    UINT8_TO_STREAM(p, ENABLE_BT);
-    size = p - msg_req;
-    memcpy(buf, msg_req, size);
-    return size;
-}
-
-static int bt_get_rf_buf(void *buf)
-{
-    uint8_t *p, msg_req[CMD_MAX_LEN];
-    int i, size;
-
-    p = msg_req;
-
-    for (i = 0; i < 6; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_GainValue_A[i]);
-    }
-
-    for (i = 0; i < 10; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_ClassicPowerValue_A[i]);
-    }
-
-    for (i = 0; i < 16; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEPowerValue_A[i]);
-    }
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_BRChannelpwrvalue_A[i]);
-    }
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_EDRChannelpwrvalue_A[i]);
-    }
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEChannelpwrvalue_A[i]);
-    }
-
-    for (i = 0; i < 6; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_GainValue_B[i]);
-    }
-
-    for (i = 0; i < 10; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_ClassicPowerValue_B[i]);
-    }
-
-
-    for (i = 0; i < 16; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEPowerValue_B[i]);
-    }
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_BRChannelpwrvalue_B[i]);
-    }
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_EDRChannelpwrvalue_B[i]);
-    }
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_rf_config.g_LEChannelpwrvalue_B[i]);
-    }
-
-    UINT16_TO_STREAM(p, marlin3_rf_config.LE_fix_powerword);
-
-    UINT8_TO_STREAM(p, marlin3_rf_config.Classic_pc_by_channel);
-    UINT8_TO_STREAM(p, marlin3_rf_config.LE_pc_by_channel);
-    UINT8_TO_STREAM(p, marlin3_rf_config.RF_switch_mode);
-    UINT8_TO_STREAM(p, marlin3_rf_config.Data_Capture_Mode);
-    UINT8_TO_STREAM(p, marlin3_rf_config.Analog_IQ_Debug_Mode);
-    UINT8_TO_STREAM(p, marlin3_rf_config.RF_common_rfu_b3);
-
-    for (i = 0; i < 5; i++) {
-        UINT32_TO_STREAM(p, marlin3_rf_config.RF_common_rfu_w[i]);
-    }
-
-    size = p - msg_req;
-    memcpy(buf, msg_req, size);
-    return size;
-}
-
-
-static int bt_get_pskey_buf(void *buf)
-{
-    uint8_t *p, msg_req[CMD_MAX_LEN];
-    int i, size;
-
-    p = msg_req;
-    UINT32_TO_STREAM(p, marlin3_pskey.device_class);
-
-    for (i = 0; i < 16; i++) {
-        UINT8_TO_STREAM(p, marlin3_pskey.feature_set[i]);
-    }
-
-    for (i = 0; i < 6; i++) {
-        UINT8_TO_STREAM(p, marlin3_pskey.device_addr[i]);
-    }
-
-    UINT16_TO_STREAM(p, marlin3_pskey.comp_id);
-    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_uart0_communication_supported);
-    UINT8_TO_STREAM(p, marlin3_pskey.cp2_log_mode);
-    UINT8_TO_STREAM(p, marlin3_pskey.LogLevel);
-    UINT8_TO_STREAM(p, marlin3_pskey.g_central_or_perpheral);
-
-    UINT16_TO_STREAM(p, marlin3_pskey.Log_BitMask);
-    UINT8_TO_STREAM(p, marlin3_pskey.super_ssp_enable);
-    UINT8_TO_STREAM(p, marlin3_pskey.common_rfu_b3);
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.common_rfu_w[i]);
-    }
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.le_rfu_w[i]);
-    }
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.lmp_rfu_w[i]);
-    }
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.lc_rfu_w[i]);
-    }
-
-    UINT16_TO_STREAM(p, marlin3_pskey.g_wbs_nv_117);
-    UINT16_TO_STREAM(p, marlin3_pskey.g_wbs_nv_118);
-    UINT16_TO_STREAM(p, marlin3_pskey.g_nbv_nv_117);
-    UINT16_TO_STREAM(p, marlin3_pskey.g_nbv_nv_118);
-
-    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sco_transmit_mode);
-    UINT8_TO_STREAM(p, marlin3_pskey.audio_rfu_b1);
-    UINT8_TO_STREAM(p, marlin3_pskey.audio_rfu_b2);
-    UINT8_TO_STREAM(p, marlin3_pskey.audio_rfu_b3);
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.audio_rfu_w[i]);
-    }
-
-    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sleep_in_standby_supported);
-    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sleep_master_supported);
-    UINT8_TO_STREAM(p, marlin3_pskey.g_sys_sleep_slave_supported);
-    UINT8_TO_STREAM(p, marlin3_pskey.power_rfu_b1);
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.power_rfu_w[i]);
-    }
-
-    UINT32_TO_STREAM(p, marlin3_pskey.win_ext);
-
-    UINT8_TO_STREAM(p, marlin3_pskey.edr_tx_edr_delay);
-    UINT8_TO_STREAM(p, marlin3_pskey.edr_rx_edr_delay);
-    UINT8_TO_STREAM(p, marlin3_pskey.tx_delay);
-    UINT8_TO_STREAM(p, marlin3_pskey.rx_delay);
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.bb_rfu_w[i]);
-    }
-
-    UINT8_TO_STREAM(p, marlin3_pskey.agc_mode);
-    UINT8_TO_STREAM(p, marlin3_pskey.diff_or_eq);
-    UINT8_TO_STREAM(p, marlin3_pskey.ramp_mode);
-    UINT8_TO_STREAM(p, marlin3_pskey.modem_rfu_b1);
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.modem_rfu_w[i]);
-    }
-
-    UINT32_TO_STREAM(p, marlin3_pskey.BQB_BitMask_1);
-    UINT32_TO_STREAM(p, marlin3_pskey.BQB_BitMask_2);
-
-    for (i = 0; i < 8; i++) {
-        UINT16_TO_STREAM(p, marlin3_pskey.bt_coex_threshold[i]);
-    }
-
-    for (i = 0; i < 2; i++) {
-        UINT32_TO_STREAM(p, marlin3_pskey.other_rfu_w[i]);
-    }
-
-    size = p - msg_req;
-    memcpy(buf, msg_req, size);
-    return size;
-}
+extern int get_disable_buf(void *buf);
+extern int get_enable_buf(void *buf);
+extern int marlin3_rf_preload(void *buf);
+extern int get_pskey_buf(void *buf);
 
 static void cmd_complete_handle(unsigned char *data, u8_t total_len)
 {
@@ -362,15 +155,15 @@ void vendor_init()
 	char data[256] = {0};
 
 	BT_LOG("send pskey\n");
-	size = bt_get_pskey_buf(data);
+	size = get_pskey_buf(data);
 	hci_cmd_send_sync(HCI_OP_PSKEY,data,size);
 
 	BT_LOG("send rfkey\n");
-	size = bt_get_rf_buf(data);
+	size = marlin3_rf_preload(data);
 	hci_cmd_send_sync(HCI_OP_RF,data,size);
 
 	BT_LOG("send enable\n");
-	size = bt_get_enable_buf(data);
+	size = get_enable_buf(data);
 	hci_cmd_send_sync(HCI_OP_ENABLE,data,size);
 }
 
@@ -389,7 +182,7 @@ int engpc_bt_off(void) {
 	char data[256] = {0};
 
 	BT_LOG("send disable\n");
-	size = bt_get_disable_buf(data);
+	size = get_disable_buf(data);
 	hci_cmd_send_sync(HCI_OP_ENABLE,data,size);
 	return 0;
 }
