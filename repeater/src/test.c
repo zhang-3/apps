@@ -17,6 +17,7 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <intc_uwp.h>
 #include <uwp_hal.h>
+#include <pinmux.h>
 
 static int cmd_rand(const struct shell *shell, size_t argc, char **argv)
 {
@@ -117,7 +118,7 @@ static int cmd_uart(const struct shell *shell, size_t argc, char **argv)
 static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 {
 	struct device *led_dev;
-	int led_pin;
+	int led_pin, led;
 	int on_off;
 	int err = shell_cmd_precheck(shell, (argc == 3), NULL, 0);
 
@@ -132,8 +133,20 @@ static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 		return -1;
 	}
 
-	led_pin = atoi(argv[1]);
+	led = atoi(argv[1]);
 	on_off = atoi(argv[2]);
+	led_pin = CONFIG_LED_PIN1;
+
+	switch (led) {
+	case 1:
+		led_pin = CONFIG_LED_PIN1; break;
+	case 2:
+		led_pin = CONFIG_LED_PIN2; break;
+	case 3:
+		led_pin = CONFIG_LED_PIN3; break;
+	default:
+		return -1;
+	}
 
 	if (on_off) {
 		led_on(led_dev, led_pin);
@@ -148,12 +161,15 @@ static struct gpio_callback button_cb;
 int count;
 #define BUTTON_PIN 0
 #define GPIO0_REG (BASE_AON_PIN+0x10)
-#define PIN_FPU_EN BIT(8)
+#define PMUX_DEV "pinmux_drv"
 
-static void led3_on(struct device *port, struct gpio_callback *cb,
+static void led2_on(struct device *port, struct gpio_callback *cb,
 				 u32_t pin)
 {
 	port = device_get_binding(LED_NAME);
+	if (!port) {
+		printk("Can not find device %s.\n", LED_NAME);
+	}
 	pin = 3;
 	if (count%2 == 0)
 		led_on(port, pin);
@@ -164,19 +180,65 @@ static void led3_on(struct device *port, struct gpio_callback *cb,
 
 static int cmd_button(const struct shell *shell, size_t argc, char **argv)
 {
-	struct device *gpio;
+	struct device *gpio, *pmx_dev;
 
 	gpio = device_get_binding(GPIO_PORT0);
+	if (!gpio) {
+		printk("Can not find device %s.\n", GPIO_PORT0);
+		return -1;
+	}
+	pmx_dev = device_get_binding(PMUX_DEV);
+	if (!pmx_dev) {
+		printk("Can not find device %s.\n", PMUX_DEV);
+		return -1;
+	}
 	count = 0;
 	gpio_pin_configure(gpio, BUTTON_PIN, (GPIO_DIR_IN | GPIO_INT
 			| GPIO_INT_EDGE | GPIO_PUD_PULL_UP
 			| GPIO_INT_ACTIVE_LOW));
-	unsigned int *q = (unsigned int *)GPIO0_REG;
-	*q |= PIN_FPU_EN;
+	pinmux_pin_pullup(pmx_dev, P_GPIO0, PMUX_FPU_EN);
 
-	gpio_init_callback(&button_cb, led3_on, BIT(BUTTON_PIN));
+	gpio_init_callback(&button_cb, led2_on, BIT(BUTTON_PIN));
 	gpio_add_callback(gpio, &button_cb);
 	gpio_pin_enable_callback(gpio, BUTTON_PIN);
+
+	return 0;
+}
+
+#define FUNC3 3
+#define PIN10 10
+#define PULLUP 1
+int reset_misc(void)
+{
+	struct device *pm_dev, *p0_dev;
+
+	pm_dev = device_get_binding(PMUX_DEV);
+	if (!pm_dev) {
+		printk("Can not find device %s.\n", PMUX_DEV);
+		return -1;
+	}
+	p0_dev = device_get_binding(GPIO_PORT0);
+	if (!p0_dev) {
+		printk("Can not find device %s.\n", GPIO_PORT0);
+		return -1;
+	}
+	/*set INT as GPIO10*/
+	pinmux_pin_set(pm_dev, INT, FUNC3);
+	printk("set INT as GPIO10\n");
+	/*set GPIO10 DIR out and enable GPIO10 */
+	gpio_pin_configure(p0_dev, PIN10, GPIO_DIR_OUT);
+	/*pull up GPIO10*/
+	gpio_pin_write(p0_dev, PIN10, PULLUP);
+
+	return 0;
+}
+static int cmd_reset(const struct shell *shell, size_t argc, char **argv)
+{
+	printk("resetting ...\n");
+	k_sleep(50);				/* wait 50 ms */
+
+	reset_misc();
+
 	return 0;
 }
 
@@ -187,10 +249,15 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 	SHELL_CMD(uart, NULL, "Fill a message to UART.", cmd_uart),
 	SHELL_CMD(sleep, NULL, "Sleep for (n) micro seconds.\n"
 			"Usage: sleep <ms>", cmd_sleep),
-	SHELL_CMD(led, NULL, "Control led to turn on/off.",
-			cmd_led),
+	SHELL_CMD(led, NULL, "Control led to turn on/off.\n"
+			"Usage: led <led's number> <on/off>\n"
+			"parameters:\n"
+			"led's number: 1/2/3.\n"
+			"\t   on/off: 1/0", cmd_led),
 	SHELL_CMD(button, NULL, "Push button to control led3",
 			cmd_button),
+	SHELL_CMD(reset, NULL, "Reset the board",
+			cmd_reset),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 };
 /* Creating root (level 0) command "test" */
