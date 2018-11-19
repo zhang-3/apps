@@ -21,6 +21,8 @@ static struct k_thread rx_thread_data;
 static struct k_sem	event_sem;
 extern int check_bteut_ready(void);
 extern void bt_npi_recv(unsigned char *data, int len);
+extern int get_bqb_state(void);
+extern void bqb_recv_cb(unsigned char *data, int len);
 
 int sipc_is_opened = 0;
 
@@ -54,8 +56,12 @@ static void rx_thread(void)
 
 		BT_HCIDUMP("<- ", blk.addr, blk.length);
 
-		if(0 != check_bteut_ready()){
+		if (0 != check_bteut_ready()) {
 			bt_npi_recv((unsigned char*)blk.addr,blk.length);
+			goto rx_continue;
+		}
+		if (1 == get_bqb_state()) {
+			bqb_recv_cb((unsigned char*)blk.addr,blk.length);
 			goto rx_continue;
 		}
 

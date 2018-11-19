@@ -5,4 +5,5 @@ zephyr_sources(
   bt_npi.c
   bt_sipc.c
   bt_utlis.c
+  bqb.c
   )

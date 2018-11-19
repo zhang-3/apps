@@ -11,6 +11,7 @@
 
 #include "engpc.h"
 #include "eng_diag.h"
+#include "../bt_test/bqb.h"
 
 static char ext_data_buf[DATA_EXT_DIAG_SIZE];
 static int ext_buf_len;
@@ -32,6 +33,7 @@ static unsigned int log_data_len;
 //static char backup_data_buf[DATA_BUF_SIZE];
 static int g_diag_status = ENG_DIAG_RECV_TO_AP;
 static struct k_sem	uart_rx_sem;
+static bt_bqb_state_t current_bqb_state = BQB_CLOSED;
 
 struct engpc_buf
 {
@@ -130,6 +132,23 @@ int engpc_thread(int argc, char *argv[])
 			show_buf(g_buf.buf, g_buf.used);
 			memset(log_data, 0, LOG_LEN);
 			offset = 0;
+
+			/*add bt bqb handling mechanism*/
+			if (current_bqb_state == BQB_OPENED) {
+				if (strstr((char*)g_buf.buf, BQB_MODE_OFF)) {
+					current_bqb_state = BQB_CLOSED;
+					bqb_disable();
+				} else {
+					bqb_userial_data_handle(g_buf.buf,g_buf.used);
+				}
+				continue;
+			}
+			if (strstr((char*)g_buf.buf, BQB_MODE_ON)) {
+				current_bqb_state = BQB_OPENED;
+				bqb_enable(uart);
+				continue;
+			}
+
 			if (get_user_diag_buf(g_buf.buf, g_buf.used)){
 				ENG_LOG("jessie: find 0x7e\n");
 				g_diag_status = ENG_DIAG_RECV_TO_AP;
