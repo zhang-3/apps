@@ -234,6 +234,7 @@ static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 }
 #endif
 
+#if defined(CONFIG_PINMUX_UWP) && defined (CONFIG_GPIO_UWP)
 static struct gpio_callback button_cb;
 int count;
 #define BUTTON_PIN 0
@@ -272,10 +273,19 @@ static int cmd_button(const struct shell *shell, size_t argc, char **argv)
 
 	return 0;
 }
+#else
+static int cmd_button(const struct shell *shell, size_t argc, char **argv)
+{
+	printk("CONFIG_PINMUX_UWP or CONFIG_GPIO_UWP is not enabled!\n");
+	return 0;
+}
+#endif
 
+#if defined(CONFIG_PINMUX_UWP) && defined (CONFIG_GPIO_UWP)
 #define FUNC3 3
 #define PIN10 10
 #define PULLUP 1
+#define PMUX_DEV "pinmux_drv"
 int reset_misc(void)
 {
 	struct device *pm_dev, *p0_dev;
@@ -309,6 +319,13 @@ static int cmd_reset(const struct shell *shell, size_t argc, char **argv)
 
 	return 0;
 }
+#else
+static int cmd_reset(const struct shell *shell, size_t argc, char **argv)
+{
+	printk("CONFIG_PINMUX_UWP or CONFIG_GPIO_UWP is not enabled!\n");
+	return 0;
+}
+#endif
 
 SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 {
