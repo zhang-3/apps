@@ -14,8 +14,8 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 #include <gpio.h>
 #include <uart.h>
 #include <led.h>
+#include <irq_nextlevel.h>
 
-#include <intc_uwp.h>
 #include <uwp_hal.h>
 #include <pinmux.h>
 
@@ -31,37 +31,105 @@ static int cmd_rand(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
-static void intc_uwp_soft_irq(int channel, void *data)
+#define SOFT_INT_IRQ_NUM	(0x0201)
+#define SOFT_INT_FIQ_NUM	(0x0200)
+#define SOFT_INT_AON_NUM	(0x0214)
+#define	SOFT_IRQ			(0x01)
+struct uwp_ictl_data {
+	u32_t	base_addr;
+};
+#define DEV_DATA(dev) \
+	((struct uwp_ictl_data * const)(dev)->driver_data)
+#define INTC_STRUCT(dev) \
+	((volatile struct uwp_intc *)(DEV_DATA(dev))->base_addr)
+
+struct soft_irq {
+	char *name;
+	u32_t irq_num;
+};
+
+struct soft_irq soft_irq[] =
 {
-	if (data) {
-		LOG_INF("aon soft irq.");
-		uwp_aon_irq_clear_soft();
-	} else {
-		LOG_INF("soft irq.");
-		uwp_irq_clear_soft();
-	}
+	{CONFIG_UWP_ICTL_0_NAME, SOFT_INT_IRQ_NUM},
+	{CONFIG_UWP_ICTL_1_NAME, SOFT_INT_FIQ_NUM},
+	{CONFIG_UWP_ICTL_2_NAME, SOFT_INT_AON_NUM},
+	{NULL, 0}
+};
+
+static inline void uwp_ictl_irq_trigger_soft(struct device *dev)
+{
+	volatile struct uwp_intc *intc = INTC_STRUCT(dev);
+
+	uwp_intc_trigger_soft(intc);
 }
 
+static inline void uwp_ictl_irq_clear_soft(struct device *dev)
+{
+	volatile struct uwp_intc *intc = INTC_STRUCT(dev);
+
+	uwp_intc_clear_soft(intc);
+}
+
+static void intc_uwp_soft_irq(void *data)
+{
+	struct device **dev = (struct device **)data;
+
+	if (!(*dev)) {
+		printk("Unknown device: %p.\n", *dev);
+		return;
+	}
+
+	uwp_ictl_irq_clear_soft(*dev);
+	printk("soft irq: %s.\n", (*dev)->config->name);
+}
+
+static struct device *intc_irq;
+static struct device *intc_fiq;
+static struct device *intc_aon;
 static int cmd_intc(const struct shell *shell, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 
-	uwp_intc_set_irq_callback(INT_SOFT, intc_uwp_soft_irq, (void *)0);
-	uwp_irq_enable(INT_SOFT);
 
-	uwp_irq_trigger_soft();
+	intc_irq = device_get_binding(CONFIG_UWP_ICTL_0_NAME);
+	if (!intc_irq) {
+		printk("Can not find device: %s.\n",
+				CONFIG_UWP_ICTL_0_NAME);
+		return -1;
+	}
 
-	uwp_irq_disable(INT_SOFT);
-	uwp_intc_unset_irq_callback(INT_SOFT);
+	IRQ_CONNECT(SOFT_INT_IRQ_NUM, 0,
+				intc_uwp_soft_irq,
+				&intc_irq, 0);
+	irq_enable_next_level(intc_irq, SOFT_IRQ);
+	uwp_ictl_irq_trigger_soft(intc_irq);
 
-	uwp_aon_intc_set_irq_callback(INT_SOFT, intc_uwp_soft_irq, (void *)1);
-	uwp_aon_irq_enable(INT_SOFT);
+	intc_fiq = device_get_binding(CONFIG_UWP_ICTL_1_NAME);
+	if (intc_fiq == NULL) {
+		printk("Can not find device: %s.\n",
+				CONFIG_UWP_ICTL_1_NAME);
+		return -1;
+	}
 
-	uwp_aon_irq_trigger_soft();
+	IRQ_CONNECT(SOFT_INT_FIQ_NUM, 0,
+				intc_uwp_soft_irq,
+				&intc_fiq, 0);
+	irq_enable_next_level(intc_fiq, SOFT_IRQ);
+	uwp_ictl_irq_trigger_soft(intc_fiq);
 
-	uwp_aon_irq_disable(INT_SOFT);
-	uwp_aon_intc_unset_irq_callback(INT_SOFT);
+	intc_aon = device_get_binding(CONFIG_UWP_ICTL_2_NAME);
+	if (intc_aon == NULL) {
+		printk("Can not find device: %s.\n",
+				CONFIG_UWP_ICTL_2_NAME);
+		return -1;
+	}
+
+	IRQ_CONNECT(SOFT_INT_AON_NUM, 0,
+				intc_uwp_soft_irq,
+				&intc_aon, 0);
+	irq_enable_next_level(intc_aon, SOFT_IRQ);
+	uwp_ictl_irq_trigger_soft(intc_aon);
 
 	return 0;
 }
@@ -112,6 +180,7 @@ static int cmd_uart(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+#ifdef CONFIG_LED
 #define LED_NAME "led"
 #define SOTAP_LED (1)
 #define STA_LED (3)
@@ -156,6 +225,13 @@ static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 
 	return 0;
 }
+#else
+static int cmd_led(const struct shell *shell, size_t argc, char **argv)
+{
+	printk("CONFIG_LED is not enabled!\n");
+	return 0;
+}
+#endif
 
 static struct gpio_callback button_cb;
 int count;
@@ -163,19 +239,10 @@ int count;
 #define GPIO0_REG (BASE_AON_PIN+0x10)
 #define PMUX_DEV "pinmux_drv"
 
-static void led2_on(struct device *port, struct gpio_callback *cb,
+static void button_callback(struct device *port, struct gpio_callback *cb,
 				 u32_t pin)
 {
-	port = device_get_binding(LED_NAME);
-	if (!port) {
-		printk("Can not find device %s.\n", LED_NAME);
-	}
-	pin = 3;
-	if (count%2 == 0)
-		led_on(port, pin);
-	else
-		led_off(port, pin);
-	count++;
+	printk("button pressed.\n");
 }
 
 static int cmd_button(const struct shell *shell, size_t argc, char **argv)
@@ -198,7 +265,7 @@ static int cmd_button(const struct shell *shell, size_t argc, char **argv)
 			| GPIO_INT_ACTIVE_LOW));
 	pinmux_pin_pullup(pmx_dev, P_GPIO0, PMUX_FPU_EN);
 
-	gpio_init_callback(&button_cb, led2_on, BIT(BUTTON_PIN));
+	gpio_init_callback(&button_cb, button_callback, BIT(BUTTON_PIN));
 	gpio_add_callback(gpio, &button_cb);
 	gpio_pin_enable_callback(gpio, BUTTON_PIN);
 
