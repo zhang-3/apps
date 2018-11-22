@@ -156,7 +156,7 @@ static int cmd_sleep(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
-#define GPIO_PORT0	"UWP_GPIO_P0"
+#define GPIO_PORT0	DT_GPIO_PO_UWP_NAME
 #define UART_2			"UART_2"
 static int cmd_uart(const struct shell *shell, size_t argc, char **argv)
 {
@@ -180,10 +180,11 @@ static int cmd_uart(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
-#ifdef CONFIG_LED
-#define LED_NAME "led"
-#define SOTAP_LED (1)
-#define STA_LED (3)
+#ifdef CONFIG_LED_UWP
+#define LED_NAME DT_GPIO_LEDS_NAME
+#define LED_PIN1 DT_GPIO_LEDS_LED_1_PIN
+#define LED_PIN2 DT_GPIO_LEDS_LED_2_PIN
+#define LED_PIN3 DT_GPIO_LEDS_LED_3_PIN
 static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 {
 	struct device *led_dev;
@@ -204,15 +205,15 @@ static int cmd_led(const struct shell *shell, size_t argc, char **argv)
 
 	led = atoi(argv[1]);
 	on_off = atoi(argv[2]);
-	led_pin = CONFIG_LED_PIN1;
+	led_pin = LED_PIN1;
 
 	switch (led) {
 	case 1:
-		led_pin = CONFIG_LED_PIN1; break;
+		led_pin = LED_PIN1; break;
 	case 2:
-		led_pin = CONFIG_LED_PIN2; break;
+		led_pin = LED_PIN2; break;
 	case 3:
-		led_pin = CONFIG_LED_PIN3; break;
+		led_pin = LED_PIN3; break;
 	default:
 		return -1;
 	}
