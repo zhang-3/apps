@@ -135,6 +135,7 @@ void wifimgr_set_conf_and_connect(const void *buf)
 	memcpy(conf.passwd,p,pwd_len);
 	p+=pwd_len;
 	BTD("%s, passwd = %s\n", __func__, conf.passwd);
+	strcpy(cur_wifi_status.passwd, conf.passwd);
 
 	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf) {
 		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_STA,
@@ -473,7 +474,8 @@ void wifimgr_start_ap(const void *buf)
 	BTD("%s\n", __func__);
 	char data[2] = {0};
 	char *ptr, mac_nic[7] = {0};
-	char ssid[32] = "UNISOC_";
+	char ssid[MAX_SSID_LEN+1] = "UNISOC_";
+	char *passwd;
 	u8_t res_result = RESULT_SUCCESS;
 	int i;
 	int ret = -1;
@@ -485,11 +487,13 @@ void wifimgr_start_ap(const void *buf)
 	}
 	strcat(ssid, mac_nic);
 
+	passwd = strlen(cur_wifi_status.passwd) ? cur_wifi_status.passwd : NULL;
+
 	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf) {
 		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_AP,
 									ssid,
 									NULL,
-									NULL,
+									passwd,
 									0,
 									0);
 	/* Set channel: 0 to tell the firmware using STA channle */

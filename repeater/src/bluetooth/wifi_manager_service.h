@@ -2,7 +2,7 @@
 #define __WIFI_MANAGER_SERVICE_H__
 
 #define MAX_SSID_LEN    32
-#define MAX_PSWD_LEN    32
+#define MAX_PSWD_LEN    63
 #define BSSID_LEN   6
 #define OPCODE_BYTE   1
 #define LEN_BYTE   2
@@ -48,6 +48,7 @@ typedef struct {
 	unsigned char ap_status;
 	char sta_mac[6];
 	char ap_mac[6];
+	char passwd[MAX_PSWD_LEN+1];
 }wifi_status_type;
 
 enum {
