@@ -16,9 +16,8 @@ struct device *dev;
 extern int npi_wifi_iface_init(struct device **dev);
 extern int npi_open_station(struct device *dev);
 extern int npi_close_station(struct device *dev);
-
-extern int wifi_cmd_npi_send(int ictx_id, char *t_buf, uint32_t t_len, char *r_buf, uint32_t *r_len);
-extern int wifi_cmd_npi_get_mac(int ictx_id, char * buf);
+extern int npi_cmd_send_recv(struct device *dev, int ictx_id, char *t_buf, uint32_t t_len, char *r_buf, uint32_t *r_len);
+extern int npi_get_mac(struct device *dev, char * buf);
 extern int iwnpi_hex_dump(unsigned char *name, unsigned short nLen, unsigned char *pData, unsigned short len);
 
 #define SUCCESS (0)
@@ -86,7 +85,8 @@ static int sprdwl_npi_cmd_handler(wlnpi_t *wlnpi, unsigned char *s_buf, int s_le
 	ENG_LOG("%s type is %d, subtype %d\n", dbgstr, hdr->type, hdr->subtype);
 	//iwnpi_hex_dump((unsigned char *)"s_buf:\n", strlen("s_buf:\n"), (unsigned char *)s_buf, s_len);
 
-	ret = wifi_cmd_npi_send(ictx_id, (char *)s_buf, s_len, (char *)r_buf, r_len);
+	//ret = wifi_cmd_npi_send(dev, ictx_id, (char *)s_buf, s_len, (char *)r_buf, r_len);
+	ret = npi_cmd_send_recv(dev, ictx_id, (char *)s_buf, s_len, (char *)r_buf, r_len);
 	if (ret < 0)
 	{
 		ENG_LOG("npi command send or recv error!\n");
@@ -142,7 +142,8 @@ static int sprdwl_npi_get_info_handler(wlnpi_t *wlnpi, unsigned char *s_buf, int
 
 	ENG_LOG("enter %s\n", __func__);
 	ictx_id = wlnpi->ictx_id;
-	ret = wifi_cmd_npi_get_mac(ictx_id, (char *)r_buf);
+	//ret = wifi_cmd_npi_get_mac(ictx_id, (char *)r_buf);
+	ret = npi_get_mac(dev, (char *)r_buf);
 	ENG_LOG("%s() ret from wifi drv is %d\n", __func__, ret);
 
 	return ret;

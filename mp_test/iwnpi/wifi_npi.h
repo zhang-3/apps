@@ -4,6 +4,7 @@
 #include"wlnpi.h"
 
 #define WIFINPI_DEV_NAME_STA	"WIFI_STA"
+#define WIFINPI_ETH_ALEN	6
 
 int npi_wifi_iface_init(struct device **dev);
 int npi_open_station(struct device *dev);
