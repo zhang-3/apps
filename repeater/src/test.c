@@ -18,6 +18,7 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <uwp_hal.h>
 #include <pinmux.h>
+#include <flash_map.h>
 
 static int cmd_rand(const struct shell *shell, size_t argc, char **argv)
 {
@@ -327,6 +328,25 @@ static int cmd_reset(const struct shell *shell, size_t argc, char **argv)
 }
 #endif
 
+static int cmd_wipe_all_config(const struct shell *shell,
+			size_t argc, char *argv[])
+{
+	const struct flash_area *fap;
+	int rc;
+
+	rc = flash_area_open(CONFIG_SETTINGS_FCB_FLASH_AREA, &fap);
+
+	if (rc == 0) {
+		rc = flash_area_erase(fap, 0, fap->fa_size);
+		flash_area_close(fap);
+		printk("\n###################################\n");
+		printk("wipe success! please reset system! ..........\n");
+		printk("###################################\n\n");
+	}
+
+	return rc;
+}
+
 SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 {
 	SHELL_CMD(rand, NULL, "Generate random number.", cmd_rand),
@@ -343,6 +363,8 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 			cmd_button),
 	SHELL_CMD(reset, NULL, "Reset the board",
 			cmd_reset),
+	SHELL_CMD(wipe, NULL, "wipe all configs in userdata partition.",
+			cmd_wipe_all_config),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 };
 /* Creating root (level 0) command "test" */
