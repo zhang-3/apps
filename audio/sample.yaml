@@ -1,0 +1,15 @@
+sample:
+  description: Audio Demo, based on UWP566X
+    application
+  name: audio
+  platforms: all
+common:
+    tags: samples
+    harness: console
+    harness_config:
+      type: one_line
+      regex:
+        - "Unisoc AUDIO Demo(.*)"
+tests:
+  sample.helloworld.multithread:
+    tags: samples
