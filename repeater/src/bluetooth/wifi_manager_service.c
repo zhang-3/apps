@@ -387,21 +387,26 @@ error:
 	wifi_manager_notify(data, data_len);
 }
 
-void wifimgr_ctrl_iface_get_status_cb(char *iface_name, unsigned char status,
-				char *own_mac, signed char signal)
+void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
+				   char host_rssi, char *host_ssid,
+				   char *host_bssid)
 {
-	BTD("%s, iface_name:%s, status:%d, signal:%d\n", __func__,iface_name,status,signal);
-	BTD("%s, %s mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,iface_name,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
+	BTD("%s, status:%d, signal:%d\n", __func__,status,host_rssi);
+	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
 
-	if (!strcmp(iface_name, WIFIMGR_IFACE_NAME_STA)) {
-		cur_wifi_status.sta_status = status;
-		memcpy(cur_wifi_status.sta_mac, own_mac, 6);
-	} else if (!strcmp(iface_name, WIFIMGR_IFACE_NAME_AP)) {
-		cur_wifi_status.ap_status = status;
-		memcpy(cur_wifi_status.ap_mac, own_mac, 6);
-	} else {
-		BTD("%s,iface_name error\n", __func__);
-	}
+	cur_wifi_status.sta_status = status;
+	memcpy(cur_wifi_status.sta_mac, own_mac, 6);
+	k_sem_give(&get_status_sem);
+}
+
+void wifimgr_ctrl_iface_get_ap_status_cb(unsigned char status, char *own_mac,
+				  char client_nr, char client_mac[][6])
+{
+	BTD("%s, status:%d, client_nr:%d\n", __func__,status,client_nr);
+	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
+
+	cur_wifi_status.ap_status = status;
+	memcpy(cur_wifi_status.ap_mac, own_mac, 6);
 	k_sem_give(&get_status_sem);
 }
 
@@ -826,7 +831,7 @@ void wifi_manager_notify(const void *data, u16_t len)
 }
 
 void wifimgr_ctrl_iface_notify_scan_res(char *ssid, char *bssid, unsigned char band,
-				unsigned char channel, signed char signal)
+				unsigned char channel, char signal)
 {
 	BTD("%s\n", __func__);
 	wifi_scan_res_type scan_res;
@@ -921,7 +926,8 @@ void wifimgr_ctrl_iface_notify_del_station_timeout(void)
 
 static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
 	.get_conf_cb = wifimgr_ctrl_iface_get_conf_cb,
-	.get_status_cb = wifimgr_ctrl_iface_get_status_cb,
+	.get_sta_status_cb = wifimgr_ctrl_iface_get_sta_status_cb,
+	.get_ap_status_cb = wifimgr_ctrl_iface_get_ap_status_cb,
 	.notify_scan_res = wifimgr_ctrl_iface_notify_scan_res,
 	.notify_scan_done = wifimgr_ctrl_iface_notify_scan_done,
 	.notify_connect = wifimgr_ctrl_iface_notify_connect,
