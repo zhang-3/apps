@@ -17,6 +17,7 @@
 #include <uwp5661/drivers/src/bt/uki_utlis.h>
 #include <uwp5661/drivers/src/bt/uki_config.h>
 
+#include <settings/settings.h>
 
 #include "mesh.h"
 #include "light.h"
