@@ -143,7 +143,8 @@ void wifimgr_set_conf_and_connect(const void *buf)
 									(bssid_len > 0 ? conf.bssid : NULL),
 									(pwd_len > 0 ? conf.passwd : NULL),
 									conf.band,
-									conf.channel);
+									conf.channel,
+									0);
 	} else {
 		BTD("%s, set_conf = NULL\n", __func__);
 		res_result = RESULT_FAIL;
@@ -269,7 +270,8 @@ void wifimgr_get_conf(const void *buf)
 }
 
 void wifimgr_ctrl_iface_get_conf_cb(char *iface_name, char *ssid, char *bssid,
-				char *passphrase, unsigned char band, unsigned char channel)
+				char *passphrase, unsigned char band,
+				unsigned char channel, unsigned char channel_width)
 {
 	BTD("%s\n", __func__);
 	wifi_config_type conf;
@@ -388,8 +390,8 @@ error:
 }
 
 void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
-				   char host_rssi, char *host_ssid,
-				   char *host_bssid)
+					char *host_ssid, char *host_bssid,
+					char host_channel, char host_rssi)
 {
 	BTD("%s, status:%d, signal:%d\n", __func__,status,host_rssi);
 	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
@@ -400,7 +402,7 @@ void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 }
 
 void wifimgr_ctrl_iface_get_ap_status_cb(unsigned char status, char *own_mac,
-				  char client_nr, char client_mac[][6])
+					char client_nr, char client_mac[][6])
 {
 	BTD("%s, status:%d, client_nr:%d\n", __func__,status,client_nr);
 	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
@@ -499,8 +501,7 @@ void wifimgr_start_ap(const void *buf)
 									ssid,
 									NULL,
 									passwd,
-									0,
-									0);
+									0, 0, 0);
 	/* Set channel: 0 to tell the firmware using STA channle */
 	} else {
 		BTD("%s, set_conf = NULL\n", __func__);
