@@ -20,3 +20,7 @@ target_sources_ifdef(
   app PRIVATE
   src/bluetooth/wifi_manager_service.c
   )
+
+add_subdirectory_ifdef(CONFIG_ENGPC	engpc)
+add_subdirectory_ifdef(CONFIG_IWNPI	iwnpi)
+add_subdirectory_ifdef(CONFIG_BT_TEST	bt_test)

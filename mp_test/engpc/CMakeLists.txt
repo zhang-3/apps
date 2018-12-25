@@ -1,6 +1,0 @@
-zephyr_include_directories(.)
-zephyr_sources(engpc_main.c)
-zephyr_sources(eng_diag.c)
-zephyr_sources(eng_cmd4linuxhdlr.c)
-zephyr_sources(wifi_eut_sprd.c)
-zephyr_sources(eng_sscanf.c)

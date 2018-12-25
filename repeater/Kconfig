@@ -12,3 +12,21 @@ module-help = Sets log level for repeater application.
 source "subsys/net/Kconfig.template.log_config.net"
 
 source "Kconfig.zephyr"
+
+config ENGPC
+	bool "ENGPC test tool"
+	default y
+	help
+		Enable ENGPC test tool for bt/wifi npi test
+
+config IWNPI
+        bool "iwnpi tool for wifi npi test"
+        default y
+        help
+          Enable the iwnpi tool for wifi npi test
+
+config BT_TEST
+        bool "test tool for bt npi"
+        default y
+        help
+          Enable the bt npi test
