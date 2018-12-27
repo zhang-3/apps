@@ -6,6 +6,7 @@
 #define BSSID_LEN   6
 #define OPCODE_BYTE   1
 #define LEN_BYTE   2
+#define WIFI_MAX_STA_NR   16
 
 #define CMD_OPEN                       0x01
 #define CMD_CLOSE                      0x02
@@ -16,6 +17,8 @@
 #define CMD_START_AP                   0x07
 #define CMD_DISABLE_BT                 0x08
 #define CMD_SCAN                       0x09
+#define CMD_STOP_AP                    0x0B
+#define CMD_DEL_STATION                0x0C
 
 #define RESULT_OPEN                    0x81
 #define RESULT_CLOSE                   0x82
@@ -26,6 +29,8 @@
 #define RESULT_START_AP                0x87
 #define RESULT_SCAN_DONE               0x89
 #define RESULT_SCAN_REPORT             0x8A
+#define RESULT_STOP_AP                 0x8B
+#define RESULT_STATION_REPORT          0x8C
 
 typedef struct {
 	char ssid[MAX_SSID_LEN+1];
@@ -49,15 +54,34 @@ typedef struct {
 	char sta_mac[6];
 	char ap_mac[6];
 	char passwd[MAX_PSWD_LEN+1];
+	union {
+		struct {
+			char host_rssi;
+			u8_t h_ssid_len;
+			u8_t h_bssid_len;
+			char host_ssid[MAX_SSID_LEN + 1];
+			char host_bssid[BSSID_LEN + 1];
+		} sta;
+		struct {
+			unsigned char client_nr;
+			char client_mac[WIFI_MAX_STA_NR][BSSID_LEN];
+		} ap;
+	} u;
 }wifi_status_type;
 
 enum {
-	WIFI_STATUS_NODEV,
-	WIFI_STATUS_READY,
-	WIFI_STATUS_SCANNING,
-	WIFI_STATUS_CONNECTING,
-	WIFI_STATUS_CONNECTED,
-	WIFI_STATUS_DISCONNECTING,
+	WIFI_STA_STATUS_NODEV,
+	WIFI_STA_STATUS_READY,
+	WIFI_STA_STATUS_SCANNING,
+	WIFI_STA_STATUS_CONNECTING,
+	WIFI_STA_STATUS_CONNECTED,
+	WIFI_STA_STATUS_DISCONNECTING,
+};
+
+enum wifimgr_sm_ap_state {
+	WIFI_AP_STATUS_NODEV,
+	WIFI_AP_STATUS_READY,
+	WIFI_AP_STATUS_STARTED,
 };
 
 enum {
@@ -72,4 +96,5 @@ int wifimgr_do_connect(void);
 int wifimgr_do_disconnect(u8_t flags);
 int wifimgr_do_open(char *iface_name);
 int wifimgr_check_wifi_status(char *iface_name);
+int wifimgr_do_close(char *iface_name);
 #endif

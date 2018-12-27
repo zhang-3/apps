@@ -160,25 +160,25 @@ void wifimgr_set_conf_and_connect(const void *buf)
 	ret = wifimgr_check_wifi_status(WIFIMGR_IFACE_NAME_STA);
 	if (0 == ret) {
 		switch(cur_wifi_status.sta_status){
-			case WIFI_STATUS_NODEV:
+			case WIFI_STA_STATUS_NODEV:
 				if (0 != wifimgr_do_open(WIFIMGR_IFACE_NAME_STA)) {
 					BTD("%s, open fail\n", __func__);
 					res_result = RESULT_FAIL;
 					goto error;
 				}
 			break;
-			case WIFI_STATUS_READY:
+			case WIFI_STA_STATUS_READY:
 			break;
-			case WIFI_STATUS_CONNECTED:
+			case WIFI_STA_STATUS_CONNECTED:
 				if (0 != wifimgr_do_disconnect(1)) {
 					BTD("%s, STATUS_CONNECTED and do_disconnect fail\n", __func__);
 					res_result = RESULT_FAIL;
 					goto error;
 				}
 			break;
-			case WIFI_STATUS_SCANNING:
-			case WIFI_STATUS_CONNECTING:
-			case WIFI_STATUS_DISCONNECTING:
+			case WIFI_STA_STATUS_SCANNING:
+			case WIFI_STA_STATUS_CONNECTING:
+			case WIFI_STA_STATUS_DISCONNECTING:
 				BTD("%s,status = %d ,wifi is busy\n", __func__, cur_wifi_status.sta_status);
 				res_result = RESULT_FAIL;
 				goto error;
@@ -316,7 +316,7 @@ void wifimgr_ctrl_iface_get_conf_cb(char *iface_name, char *ssid, char *bssid,
 		|| (bssid_len > BSSID_LEN)
 		|| (passwd_len > MAX_PSWD_LEN)) {
 		res_result = RESULT_FAIL;
-		data[0] = RESULT_GET_STATUS;
+		data[0] = RESULT_GET_CONF;
 		data[1] = res_result;
 
 		BTD("%s ,len error\n", __func__);
@@ -358,9 +358,13 @@ void wifimgr_get_status(const void *buf)
 {
 	BTD("%s\n", __func__);
 	int ret = -1;
-	char data[15] = {0};
+	char data[200] = {0};
 	u8_t res_result = RESULT_SUCCESS;
-	int data_len = 0;
+	int data_len = 2;
+	char *p = NULL;
+	int i;
+
+	p = &data[2];
 
 	ret = wifimgr_check_wifi_status(WIFIMGR_IFACE_NAME_STA);
 	if (0 != ret) {
@@ -368,7 +372,27 @@ void wifimgr_get_status(const void *buf)
 		res_result = RESULT_FAIL;
 		goto error;
 	} else {
-		memcpy(&data[3], cur_wifi_status.sta_mac, 6);
+		UINT8_TO_STREAM(p, cur_wifi_status.sta_status);
+		for (i = 0; i < BSSID_LEN; i++) {
+			UINT8_TO_STREAM(p, cur_wifi_status.sta_mac[i]);
+		}
+		data_len += 7;
+
+		UINT16_TO_STREAM(p, cur_wifi_status.u.sta.h_ssid_len);
+		if (0 != cur_wifi_status.u.sta.h_ssid_len) {
+			for (i = 0; i < cur_wifi_status.u.sta.h_ssid_len; i++) {
+				UINT8_TO_STREAM(p, cur_wifi_status.u.sta.host_ssid[i]);
+			}
+		}
+		data_len += (2 + cur_wifi_status.u.sta.h_ssid_len);
+
+		UINT16_TO_STREAM(p, cur_wifi_status.u.sta.h_bssid_len);
+		if (0 != cur_wifi_status.u.sta.h_bssid_len) {
+			for (i = 0; i < cur_wifi_status.u.sta.h_bssid_len; i++) {
+				UINT8_TO_STREAM(p, cur_wifi_status.u.sta.host_bssid[i]);
+			}
+		}
+		data_len += (2 + cur_wifi_status.u.sta.h_bssid_len);
 	}
 
 	ret = wifimgr_check_wifi_status(WIFIMGR_IFACE_NAME_AP);
@@ -377,10 +401,18 @@ void wifimgr_get_status(const void *buf)
 		res_result = RESULT_FAIL;
 		goto error;
 	} else {
-		memcpy(&data[9], cur_wifi_status.ap_mac, 6);
+		UINT8_TO_STREAM(p, cur_wifi_status.ap_status);
+		for (i = 0; i < BSSID_LEN; i++) {
+			UINT8_TO_STREAM(p, cur_wifi_status.ap_mac[i]);
+		}
+		data_len += 7;
+
+		UINT16_TO_STREAM(p, cur_wifi_status.u.ap.client_nr * BSSID_LEN);
+		if (0 != cur_wifi_status.u.ap.client_nr) {
+			memcpy(p, &cur_wifi_status.u.ap.client_mac[0][0], BSSID_LEN * cur_wifi_status.u.ap.client_nr);
+		}
+		data_len += (2 + BSSID_LEN * cur_wifi_status.u.ap.client_nr);
 	}
-	data[2] = cur_wifi_status.sta_status;
-	data_len = 15;
 
 error:
 	data[0] = RESULT_GET_STATUS;
@@ -398,6 +430,32 @@ void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 
 	cur_wifi_status.sta_status = status;
 	memcpy(cur_wifi_status.sta_mac, own_mac, 6);
+
+	if (WIFI_STA_STATUS_CONNECTED == status) {
+		if (host_ssid) {
+			memset(cur_wifi_status.u.sta.host_ssid, 0, sizeof(cur_wifi_status.u.sta.host_ssid));
+			memcpy(cur_wifi_status.u.sta.host_ssid, host_ssid, strlen(host_ssid));
+			cur_wifi_status.u.sta.h_ssid_len = strlen(host_ssid);
+			BTD("%s ,host_ssid = %s\n", __func__,host_ssid);
+		} else {
+			cur_wifi_status.u.sta.h_ssid_len = 0;
+			BTD("%s ,host_ssid = NULL\n", __func__);
+		}
+
+		if (host_bssid) {
+			memset(cur_wifi_status.u.sta.host_bssid, 0, sizeof(cur_wifi_status.u.sta.host_bssid));
+			memcpy(cur_wifi_status.u.sta.host_bssid, host_bssid, BSSID_LEN);
+			cur_wifi_status.u.sta.h_bssid_len = BSSID_LEN;
+			BTD("%s, host_bssid = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,host_bssid[0],host_bssid[1],host_bssid[2],host_bssid[3],host_bssid[4],host_bssid[5]);
+		} else {
+			cur_wifi_status.u.sta.h_bssid_len = 0;
+			BTD("%s ,host_bssid = NULL\n", __func__);
+		}
+	} else {
+		cur_wifi_status.u.sta.h_ssid_len = 0;
+		cur_wifi_status.u.sta.h_bssid_len = 0;
+	}
+
 	k_sem_give(&get_status_sem);
 }
 
@@ -409,6 +467,15 @@ void wifimgr_ctrl_iface_get_ap_status_cb(unsigned char status, char *own_mac,
 
 	cur_wifi_status.ap_status = status;
 	memcpy(cur_wifi_status.ap_mac, own_mac, 6);
+
+	if (WIFI_AP_STATUS_STARTED == status) {
+		memset(cur_wifi_status.u.ap.client_mac,0,sizeof(cur_wifi_status.u.ap.client_mac));
+		cur_wifi_status.u.ap.client_nr = (client_nr > WIFI_MAX_STA_NR ? WIFI_MAX_STA_NR : client_nr);
+		memcpy(&cur_wifi_status.u.ap.client_mac[0][0], &client_mac[0][0], BSSID_LEN * cur_wifi_status.u.ap.client_nr);
+	} else {
+		cur_wifi_status.u.ap.client_nr = 0;
+	}
+
 	k_sem_give(&get_status_sem);
 }
 
@@ -435,20 +502,15 @@ void wifimgr_open(const void *buf)
 void wifimgr_close(const void *buf)
 {
 	BTD("%s\n", __func__);
-	int ret = -1;
 	char data[2] = {0};
 	u8_t res_result = RESULT_SUCCESS;
 
-	if(wifimgr_get_ctrl_ops(get_wifimgr_cbs())->close) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->close(WIFIMGR_IFACE_NAME_STA);
+	if (0 != wifimgr_do_close(WIFIMGR_IFACE_NAME_STA)) {
+		BTD("%s, close fail\n", __func__);
+		res_result = RESULT_FAIL;
 	} else {
-		BTD("%s, close = NULL\n", __func__);
-		res_result = RESULT_FAIL;
-	}
-
-	if (0 != ret) {
-		BTD("%s, close fail,err = %d\n", __func__,ret);
-		res_result = RESULT_FAIL;
+		BTD("%s, close success\n", __func__);
+		res_result = RESULT_SUCCESS;
 	}
 
 	data[0] = RESULT_CLOSE;
@@ -486,13 +548,24 @@ void wifimgr_start_ap(const void *buf)
 	u8_t res_result = RESULT_SUCCESS;
 	int i;
 	int ret = -1;
+	u8_t data_len = 0;
+	const u8_t *p = buf;
 
-	ptr = mac_nic;
-	for (i = 0; i < 3; i++) {
-		net_byte_to_hex(ptr, cur_wifi_status.ap_mac[3 + i], 'A', true);
-		ptr += 2;
+	data_len = sys_get_le16(p);
+	BTD("%s, data_len = %d\n", __func__, data_len);
+	p += 2;
+
+	if (1 == data_len && 0 == p[0]) {
+		ptr = mac_nic;
+		for (i = 0; i < 3; i++) {
+			net_byte_to_hex(ptr, cur_wifi_status.ap_mac[3 + i], 'A', true);
+			ptr += 2;
+		}
+		strcat(ssid, mac_nic);
+	} else {
+		memset(ssid, 0, sizeof(ssid));
+		memcpy(ssid, p, data_len);
 	}
-	strcat(ssid, mac_nic);
 
 	passwd = strlen(cur_wifi_status.passwd) ? cur_wifi_status.passwd : NULL;
 
@@ -537,6 +610,88 @@ void wifimgr_start_ap(const void *buf)
 
 error:
 	data[0] = RESULT_START_AP;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, sizeof(data));
+}
+
+void wifimgr_stop_ap(const void *buf)
+{
+	BTD("%s\n", __func__);
+	char data[2] = {0};
+	u8_t res_result = RESULT_SUCCESS;
+	int ret = -1;
+
+	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->stop_ap) {
+		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->stop_ap();
+	} else {
+		BTD("%s, stop_ap = NULL\n", __func__);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+	if (0 != ret) {
+		BTD("%s, stop_ap fail,error = %d\n", __func__,ret);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+	if (0 != wifimgr_do_close(WIFIMGR_IFACE_NAME_AP)) {
+		BTD("%s, close fail\n", __func__);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+error:
+	data[0] = RESULT_STOP_AP;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, sizeof(data));
+}
+
+void wifimgr_del_station(const void *buf)
+{
+	BTD("%s\n", __func__);
+	int ret = -1;
+	char data[2] = {0};
+	char station_mac[BSSID_LEN+1] = {0};
+	u8_t res_result = RESULT_FAIL;
+	char *pmac = NULL;
+	u8_t data_len = 0;
+	const u8_t *p = buf;
+
+	data_len = sys_get_le16(p);
+	BTD("%s, data_len = %d\n", __func__, data_len);
+
+	if (BSSID_LEN != data_len && 1 != data_len) {
+		BTD("%s, error! station mac len = %d\n", __func__, data_len);
+		res_result = RESULT_FAIL;
+		goto error;
+	} else if (BSSID_LEN == data_len) {
+		p += 2;
+		memcpy(station_mac, p, data_len);
+	}
+
+	pmac = data_len == BSSID_LEN ? station_mac : NULL;
+
+	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->del_station) {
+		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->del_station(pmac);
+	} else {
+		BTD("%s, del_station = NULL\n", __func__);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+	if (0 != ret) {
+		BTD("%s, del_station fail,err = %d\n", __func__,ret);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+	return;
+
+error:
+	data[0] = RESULT_STATION_REPORT;
 	data[1] = res_result;
 
 	wifi_manager_notify(data, sizeof(data));
@@ -647,6 +802,29 @@ int wifimgr_do_open(char *iface_name)
 
 	if (0 != ret) {
 		BTD("%s, open fail,err = %d\n", __func__,ret);
+		goto error;
+	} else {
+		ret = 0;
+		goto error;
+	}
+error:
+	return ret;
+}
+
+int wifimgr_do_close(char *iface_name)
+{
+	BTD("%s\n", __func__);
+	int ret = -1;
+
+	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->close) {
+		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->close(iface_name);
+	} else {
+		BTD("%s, close = NULL\n", __func__);
+		goto error;
+	}
+
+	if (0 != ret) {
+		BTD("%s, close fail,err = %d\n", __func__,ret);
 		goto error;
 	} else {
 		ret = 0;
@@ -788,6 +966,12 @@ static ssize_t wifi_manager_write(struct bt_conn *conn, const struct bt_gatt_att
 		case CMD_SCAN:
 			wifimgr_scan(&value[1]);
 		break;
+		case CMD_STOP_AP:
+			wifimgr_stop_ap(&value[1]);
+		break;
+		case CMD_DEL_STATION:
+			wifimgr_del_station(&value[1]);
+		break;
 
 		default:
 			BTD("%s,op_code=0x%x not found\n", __func__,op_code);
@@ -918,11 +1102,41 @@ void wifimgr_ctrl_iface_notify_scan_timeout(void)
 void wifimgr_ctrl_iface_notify_new_station(unsigned char status, unsigned char *mac)
 {
 	BTD("%s\n", __func__);
+	u8_t res_result = RESULT_SUCCESS;
+	char data[20] = {0};
+	u8_t data_len = 0;
+
+	if (!mac) {
+		BTD("mac = NULL\n");
+		res_result = RESULT_FAIL;
+		data_len = 2;
+		goto error;
+	}
+
+	BTD("status : %d, mac : %02x:%02x:%02x:%02x:%02x:%02x\n", status, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+	data[2] = status;
+	memcpy(&data[3], mac, BSSID_LEN);
+	res_result = RESULT_SUCCESS;
+	data_len = 9;
+
+error:
+	data[0] = RESULT_STATION_REPORT;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, data_len);
 }
 
 void wifimgr_ctrl_iface_notify_del_station_timeout(void)
 {
-	BTD("%s\n", __func__);
+	BTD("%s \n", __func__);
+	char data[2] = {0};
+	u8_t res_result = RESULT_FAIL;
+
+	data[0] = RESULT_STATION_REPORT;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, sizeof(data));
 }
 
 static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
