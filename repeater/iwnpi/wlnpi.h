@@ -4,10 +4,8 @@
 #include <zephyr.h>
 #include <shell/shell.h>
 #include <string.h>
-#include <stdio.h>
 #include <stdlib.h>
 
-#include <net/wifimgr_drv.h>
 #include "../engpc/eng_sscanf.h"
 
 
@@ -19,14 +17,6 @@
 
 #define STA_IDX	    1
 #define AP_IDX	    2
-
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
-
-#define LOG_TAG     "WLNPI"
-//#define ENG_LOG(...) do{} while(0)
-#define ENG_LOG(...)	    printf(__VA_ARGS__)
 
 typedef unsigned char u8;
 typedef unsigned short u16;

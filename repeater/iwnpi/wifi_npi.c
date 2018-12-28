@@ -4,6 +4,7 @@
 */
 
 #include "wifi_npi.h"
+#include "eng_log.h"
 
 char *devname = WIFINPI_DEV_NAME_STA;
 

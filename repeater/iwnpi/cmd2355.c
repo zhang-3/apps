@@ -4,6 +4,7 @@
  */
 
 #include "wlnpi.h"
+#include "eng_log.h"
 
 #define WLAN_EID_SUPP_RATES         (1)
 #define WLAN_EID_HT_CAP             (45)

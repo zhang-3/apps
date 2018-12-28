@@ -4,6 +4,7 @@
  */
 
 #include "wlnpi.h"
+#include "eng_log.h"
 
 #define WLNPI_WLAN0_NAME            ("wlan0")
 
