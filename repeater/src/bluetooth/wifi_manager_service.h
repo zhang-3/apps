@@ -38,6 +38,8 @@ typedef struct {
 	char passwd[MAX_PSWD_LEN+1];
 	unsigned char band;
 	unsigned char channel;
+	unsigned char ch_width;
+	char autorun;
 }wifi_config_type;
 
 typedef struct {

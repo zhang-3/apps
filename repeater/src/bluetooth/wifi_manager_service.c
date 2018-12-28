@@ -144,7 +144,8 @@ void wifimgr_set_conf_and_connect(const void *buf)
 									(pwd_len > 0 ? conf.passwd : NULL),
 									conf.band,
 									conf.channel,
-									0);
+									0,
+									conf.autorun);
 	} else {
 		BTD("%s, set_conf = NULL\n", __func__);
 		res_result = RESULT_FAIL;
@@ -269,9 +270,9 @@ void wifimgr_get_conf(const void *buf)
 	wifi_manager_notify(data, sizeof(data));
 }
 
-void wifimgr_ctrl_iface_get_conf_cb(char *iface_name, char *ssid, char *bssid,
+void wifimgr_ctrl_iface_get_sta_conf_cb(char *ssid, char *bssid,
 				char *passphrase, unsigned char band,
-				unsigned char channel, unsigned char channel_width)
+				unsigned char channel, char autorun)
 {
 	BTD("%s\n", __func__);
 	wifi_config_type conf;
@@ -327,6 +328,91 @@ void wifimgr_ctrl_iface_get_conf_cb(char *iface_name, char *ssid, char *bssid,
 	memset(&conf, 0, sizeof(conf));
 	memcpy(conf.ssid, ssid, ssid_len);
 	memcpy(conf.bssid, bssid, bssid_len);
+	memcpy(conf.passwd, passphrase, passwd_len);
+	data_len = 6 + ssid_len + bssid_len +passwd_len;
+	res_result = RESULT_SUCCESS;
+
+	p = data;
+	UINT8_TO_STREAM(p, RESULT_GET_CONF);
+	UINT8_TO_STREAM(p, res_result);
+	UINT16_TO_STREAM(p, data_len);
+
+	UINT16_TO_STREAM(p, ssid_len);
+	for (i = 0; i < ssid_len; i++) {
+		UINT8_TO_STREAM(p, conf.ssid[i]);
+	}
+
+	UINT16_TO_STREAM(p, bssid_len);
+	for (i = 0; i < bssid_len; i++) {
+		UINT8_TO_STREAM(p, conf.bssid[i]);
+	}
+
+	UINT16_TO_STREAM(p, passwd_len);
+	for (i = 0; i < passwd_len; i++) {
+		UINT8_TO_STREAM(p, conf.passwd[i]);
+	}
+
+	wifi_manager_notify(data, data_len + 4);
+}
+
+void wifimgr_ctrl_iface_get_ap_conf_cb(char *ssid, char *passphrase,
+				unsigned char band, unsigned char channel,
+				unsigned char channel_width, char autorun)
+{
+	BTD("%s\n", __func__);
+	wifi_config_type conf;
+	u8_t res_result = RESULT_SUCCESS;
+	char data[255] = {0};
+	u16_t data_len = 0;
+	u16_t ssid_len = 0;
+	u16_t bssid_len = 0;
+	u16_t passwd_len = 0;
+	char *p = NULL;
+	int i;
+
+	if (ssid) {
+		ssid_len = strlen(ssid);
+		BTD("%s ,ssid = %s\n", __func__,ssid);
+	} else {
+		BTD("%s ,ssid = NULL\n", __func__);
+		ssid_len = 0;
+	}
+
+	if (passphrase) {
+		BTD("%s ,pwd = %s\n", __func__,passphrase);
+		passwd_len = strlen(passphrase);
+	} else {
+		BTD("%s ,pwd = NULL\n", __func__);
+		passwd_len = 0;
+	}
+
+	/*if (bssid) {
+		bssid_len = BSSID_LEN;
+		for (i = 0; i < bssid_len; i++) {
+			BTD("bssid = 0x%02x\n", bssid[i]);
+		}
+	} else {
+		BTD("%s ,bssid = NULL\n", __func__);
+		bssid_len = 0;
+	}*/
+
+	BTD("%s, band:%d, channel:%d\n", __func__, band, channel);
+
+	if ((ssid_len > MAX_SSID_LEN)
+		|| (bssid_len > BSSID_LEN)
+		|| (passwd_len > MAX_PSWD_LEN)) {
+		res_result = RESULT_FAIL;
+		data[0] = RESULT_GET_CONF;
+		data[1] = res_result;
+
+		BTD("%s ,len error\n", __func__);
+		wifi_manager_notify(data, 2);
+		return;
+	}
+
+	memset(&conf, 0, sizeof(conf));
+	memcpy(conf.ssid, ssid, ssid_len);
+	/*memcpy(conf.bssid, bssid, bssid_len);*/
 	memcpy(conf.passwd, passphrase, passwd_len);
 	data_len = 6 + ssid_len + bssid_len +passwd_len;
 	res_result = RESULT_SUCCESS;
@@ -574,7 +660,8 @@ void wifimgr_start_ap(const void *buf)
 									ssid,
 									NULL,
 									passwd,
-									0, 0, 0);
+									0, 0, 0,
+									0);
 	/* Set channel: 0 to tell the firmware using STA channle */
 	} else {
 		BTD("%s, set_conf = NULL\n", __func__);
@@ -1140,7 +1227,8 @@ void wifimgr_ctrl_iface_notify_del_station_timeout(void)
 }
 
 static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
-	.get_conf_cb = wifimgr_ctrl_iface_get_conf_cb,
+	.get_sta_conf_cb = wifimgr_ctrl_iface_get_sta_conf_cb,
+	.get_ap_conf_cb = wifimgr_ctrl_iface_get_ap_conf_cb,
 	.get_sta_status_cb = wifimgr_ctrl_iface_get_sta_status_cb,
 	.get_ap_status_cb = wifimgr_ctrl_iface_get_ap_status_cb,
 	.notify_scan_res = wifimgr_ctrl_iface_notify_scan_res,
