@@ -65,8 +65,10 @@ typedef struct {
 			char host_bssid[BSSID_LEN + 1];
 		} sta;
 		struct {
-			unsigned char client_nr;
-			char client_mac[WIFI_MAX_STA_NR][BSSID_LEN];
+			unsigned char sta_nr;
+			char sta_mac_addrs[WIFI_MAX_STA_NR][BSSID_LEN];
+			unsigned char acl_nr;
+			char acl_mac_addrs[WIFI_MAX_STA_NR][BSSID_LEN];
 		} ap;
 	} u;
 }wifi_status_type;

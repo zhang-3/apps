@@ -493,11 +493,11 @@ void wifimgr_get_status(const void *buf)
 		}
 		data_len += 7;
 
-		UINT16_TO_STREAM(p, cur_wifi_status.u.ap.client_nr * BSSID_LEN);
-		if (0 != cur_wifi_status.u.ap.client_nr) {
-			memcpy(p, &cur_wifi_status.u.ap.client_mac[0][0], BSSID_LEN * cur_wifi_status.u.ap.client_nr);
+		UINT16_TO_STREAM(p, cur_wifi_status.u.ap.sta_nr * BSSID_LEN);
+		if (0 != cur_wifi_status.u.ap.sta_nr) {
+			memcpy(p, &cur_wifi_status.u.ap.sta_mac_addrs[0][0], BSSID_LEN * cur_wifi_status.u.ap.sta_nr);
 		}
-		data_len += (2 + BSSID_LEN * cur_wifi_status.u.ap.client_nr);
+		data_len += (2 + BSSID_LEN * cur_wifi_status.u.ap.sta_nr);
 	}
 
 error:
@@ -546,20 +546,21 @@ void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 }
 
 void wifimgr_ctrl_iface_get_ap_status_cb(unsigned char status, char *own_mac,
-					char client_nr, char client_mac[][6])
+					 unsigned char sta_nr, char sta_mac_addrs[][6],
+					 unsigned char acl_nr, char acl_mac_addrs[][6])
 {
-	BTD("%s, status:%d, client_nr:%d\n", __func__,status,client_nr);
+	BTD("%s, status:%d, sta_nr:%d\n", __func__,status,sta_nr);
 	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
 
 	cur_wifi_status.ap_status = status;
 	memcpy(cur_wifi_status.ap_mac, own_mac, 6);
 
 	if (WIFI_AP_STATUS_STARTED == status) {
-		memset(cur_wifi_status.u.ap.client_mac,0,sizeof(cur_wifi_status.u.ap.client_mac));
-		cur_wifi_status.u.ap.client_nr = (client_nr > WIFI_MAX_STA_NR ? WIFI_MAX_STA_NR : client_nr);
-		memcpy(&cur_wifi_status.u.ap.client_mac[0][0], &client_mac[0][0], BSSID_LEN * cur_wifi_status.u.ap.client_nr);
+		memset(cur_wifi_status.u.ap.sta_mac_addrs,0,sizeof(cur_wifi_status.u.ap.sta_mac_addrs));
+		cur_wifi_status.u.ap.sta_nr = (sta_nr > WIFI_MAX_STA_NR ? WIFI_MAX_STA_NR : sta_nr);
+		memcpy(&cur_wifi_status.u.ap.sta_mac_addrs[0][0], &sta_mac_addrs[0][0], BSSID_LEN * cur_wifi_status.u.ap.sta_nr);
 	} else {
-		cur_wifi_status.u.ap.client_nr = 0;
+		cur_wifi_status.u.ap.sta_nr = 0;
 	}
 
 	k_sem_give(&get_status_sem);
