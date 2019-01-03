@@ -3,6 +3,11 @@
 * Owner:
 */
 
+#include <logging/log.h>
+#define LOG_MODULE_NAME repeater
+#define LOG_LEVEL CONFIG_REPEATER_LOG_LEVEL
+LOG_MODULE_DECLARE(LOG_MODULE_NAME);
+
 #include "wifi_npi.h"
 #include "eng_log.h"
 
