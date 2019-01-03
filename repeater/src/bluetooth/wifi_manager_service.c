@@ -509,7 +509,7 @@ error:
 
 void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 					char *host_ssid, char *host_bssid,
-					char host_channel, char host_rssi)
+					char host_channel, signed char host_rssi)
 {
 	BTD("%s, status:%d, signal:%d\n", __func__,status,host_rssi);
 	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
@@ -1104,7 +1104,7 @@ void wifi_manager_notify(const void *data, u16_t len)
 }
 
 void wifimgr_ctrl_iface_notify_scan_res(char *ssid, char *bssid, unsigned char band,
-				unsigned char channel, char signal)
+				unsigned char channel, signed char signal)
 {
 	BTD("%s\n", __func__);
 	wifi_scan_res_type scan_res;
