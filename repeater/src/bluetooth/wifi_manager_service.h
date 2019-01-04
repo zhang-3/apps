@@ -18,7 +18,7 @@
 #define CMD_DISABLE_BT                 0x08
 #define CMD_SCAN                       0x09
 #define CMD_STOP_AP                    0x0B
-#define CMD_DEL_STATION                0x0C
+#define CMD_SET_MAC_ACL                0x0C
 
 #define RESULT_OPEN                    0x81
 #define RESULT_CLOSE                   0x82

@@ -211,7 +211,7 @@ error:
 	wifi_manager_notify(data, sizeof(data));
 }
 
-void wifimgr_ctrl_iface_notify_connect(unsigned char result)
+void wifimgr_ctrl_iface_notify_connect(char result)
 {
 	BTD("%s ,result = %d\n", __func__, result);
 	char data[2] = {0};
@@ -737,7 +737,7 @@ error:
 	wifi_manager_notify(data, sizeof(data));
 }
 
-void wifimgr_del_station(const void *buf)
+void wifimgr_set_mac_acl(const void *buf)
 {
 	BTD("%s\n", __func__);
 	int ret = -1;
@@ -762,16 +762,16 @@ void wifimgr_del_station(const void *buf)
 
 	pmac = data_len == BSSID_LEN ? station_mac : NULL;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->del_station) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->del_station(pmac);
+	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_mac_acl) {
+		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_mac_acl(1, pmac);
 	} else {
-		BTD("%s, del_station = NULL\n", __func__);
+		BTD("%s, set_mac_acl = NULL\n", __func__);
 		res_result = RESULT_FAIL;
 		goto error;
 	}
 
 	if (0 != ret) {
-		BTD("%s, del_station fail,err = %d\n", __func__,ret);
+		BTD("%s, set_mac_acl fail,err = %d\n", __func__,ret);
 		res_result = RESULT_FAIL;
 		goto error;
 	}
@@ -960,7 +960,7 @@ void wifimgr_disconnect(const void *buf)
 	wifi_manager_notify(data, sizeof(data));
 }
 
-void wifimgr_ctrl_iface_notify_disconnect(unsigned char reason)
+void wifimgr_ctrl_iface_notify_disconnect(char reason)
 {
 	BTD("%s ,reason = %d\n", __func__,reason);
 	char data[2] = {0};
@@ -1057,8 +1057,8 @@ static ssize_t wifi_manager_write(struct bt_conn *conn, const struct bt_gatt_att
 		case CMD_STOP_AP:
 			wifimgr_stop_ap(&value[1]);
 		break;
-		case CMD_DEL_STATION:
-			wifimgr_del_station(&value[1]);
+		case CMD_SET_MAC_ACL:
+			wifimgr_set_mac_acl(&value[1]);
 		break;
 
 		default:
@@ -1173,7 +1173,7 @@ void wifimgr_ctrl_iface_notify_scan_res(char *ssid, char *bssid, unsigned char b
 	wifi_manager_notify(data, data_len + 4);
 }
 
-void wifimgr_ctrl_iface_notify_scan_done(unsigned char result)
+void wifimgr_ctrl_iface_notify_scan_done(char result)
 {
 	BTD("%s,result = %d\n", __func__,result);
 	scan_result = result;
@@ -1187,7 +1187,7 @@ void wifimgr_ctrl_iface_notify_scan_timeout(void)
 	k_sem_give(&scan_sem);
 }
 
-void wifimgr_ctrl_iface_notify_new_station(unsigned char status, unsigned char *mac)
+void wifimgr_ctrl_iface_notify_new_station(char status, char *mac)
 {
 	BTD("%s\n", __func__);
 	u8_t res_result = RESULT_SUCCESS;
@@ -1215,7 +1215,19 @@ error:
 	wifi_manager_notify(data, data_len);
 }
 
-void wifimgr_ctrl_iface_notify_del_station_timeout(void)
+void wifimgr_ctrl_iface_notify_set_mac_acl(char result)
+{
+	/*BTD("%s \n", __func__);
+	char data[2] = {0};
+	u8_t res_result = RESULT_FAIL;
+
+	data[0] = RESULT_STATION_REPORT;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, sizeof(data));*/
+}
+
+void wifimgr_ctrl_iface_notify_set_mac_acl_timeout(void)
 {
 	BTD("%s \n", __func__);
 	char data[2] = {0};
@@ -1240,7 +1252,8 @@ static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
 	.notify_connect_timeout = wifimgr_ctrl_iface_notify_connect_timeout,
 	.notify_disconnect_timeout = wifimgr_ctrl_iface_notify_disconnect_timeout,
 	.notify_new_station = wifimgr_ctrl_iface_notify_new_station,
-	.notify_del_station_timeout = wifimgr_ctrl_iface_notify_del_station_timeout,
+	.notify_set_mac_acl = wifimgr_ctrl_iface_notify_set_mac_acl,
+	.notify_set_mac_acl_timeout = wifimgr_ctrl_iface_notify_set_mac_acl_timeout,
 };
 
 struct wifimgr_ctrl_cbs *get_wifimgr_cbs(void)
