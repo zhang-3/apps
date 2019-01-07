@@ -1,0 +1,12 @@
+ota download description
+
+This file is descrited the flowchat that download bin code from web server.
+
+1. shell command: ota download <-k download the kernel bin -m download the modem bin>
+
+   Http request by GET method, and request 2048Bytes each time; it will be written to
+   flash when got 10240Bytes.
+
+2. shell command: ota verify <-k check the flash partition of kernel -m check the modem partition>
+
+	Notice, the check method was read the partition flash with 10bytes of head and 10bytes of tail.

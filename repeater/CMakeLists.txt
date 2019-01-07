@@ -5,6 +5,7 @@ project(NONE)
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/test.c)
+target_sources(app PRIVATE src/ota/ota_shell.c)
 
 include_directories($ENV{ZEPHYR_BASE}/ext/hal/unisoc/)
 
