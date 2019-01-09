@@ -8,42 +8,7 @@
 #include <string.h>
 
 #include "bt_utlis.h"
-
-void hexdump(char *tag, unsigned char *bin, size_t binsz)
-{
-	char str[500], hex_str[]= "0123456789ABCDEF";
-	size_t i;
-
-	for (i = 0; i < binsz; i++) {
-		str[(i * 3) + 0] = hex_str[(bin[i] >> 4) & 0x0F];
-		str[(i * 3) + 1] = hex_str[(bin[i]     ) & 0x0F];
-		str[(i * 3) + 2] = ' ';
-	}
-	str[(binsz * 3) - 1] = 0x00;
-	if (tag)
-		printk("%s %s\n", tag, str);
-	else
-		printk("%s\n", str);
-}
-
-void hex_dump_block(char *tag, unsigned char *bin, size_t binsz)
-{
-	int loop = binsz / DUMP_BLOCK_SIZE;
-	int tail = binsz % DUMP_BLOCK_SIZE;
-	int i;
-
-	if (!loop) {
-		hexdump(tag, bin, binsz);
-		return;
-	}
-
-	for (i = 0; i < loop; i++) {
-		hexdump(tag, bin + i * DUMP_BLOCK_SIZE, DUMP_BLOCK_SIZE);
-	}
-
-	if (tail)
-		hexdump(tag, bin + i * DUMP_BLOCK_SIZE, tail);
-}
+extern int hwdec_write_align(unsigned char type, unsigned char *data, int len);
 
 char *u_strtok_r(char *str, const char *delim, char **saveptr)
 {
@@ -109,4 +74,11 @@ char *u_strtok_r(char *str, const char *delim, char **saveptr)
       *saveptr = pend;
     }
   return pbegin;
+}
+
+int bt_sipc_send(unsigned char *data, int len)
+{
+	HCIDUMP("-> ", data, len);
+	hwdec_write_align(data[0], &data[1], len-1);
+	return len;
 }

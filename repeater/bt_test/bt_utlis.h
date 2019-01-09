@@ -7,9 +7,9 @@
 #ifndef __BT_TEST_BT_UTLIS_H_
 #define __BT_TEST_BT_UTLIS_H_
 
-#define BT_TEST_LOG_ON 0
+#include <uwp5661/drivers/src/bt/uki_utlis.h>
 
-#define DUMP_BLOCK_SIZE 20
+#define BT_TEST_LOG_ON 0
 
 #define BT_LOG(fmt, ...) 							\
 	do { 										\
@@ -18,14 +18,6 @@
 		} 										\
 	}while(0)
 
-void hex_dump_block(char *tag, unsigned char *bin, size_t binsz);
 char *u_strtok_r(char *str, const char *delim, char **saveptr);
-
-#define BT_HCIDUMP(tag, bin, binsz) 					\
-	do {											\
-		if (BT_TEST_LOG_ON == 1) { 		\
-			hex_dump_block(tag, bin, binsz); 	\
-		}											\
-	}while(0)
-
+int bt_sipc_send(unsigned char *data, int len);
 #endif
