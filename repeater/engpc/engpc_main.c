@@ -181,25 +181,27 @@ int engpc_init(struct device *dev)
 
 	uart = device_get_binding(UART_DEV);
 	if(uart == NULL) {
-		SYS_LOG_ERR("Can not find device %s.", UART_DEV);
+		ENG_LOG("Can not find device %s.\n", UART_DEV);
 		return -1;
 	}
+	ENG_LOG("engpc_init: get %s(%p)\n", UART_DEV, uart);
 
 	uart_irq_rx_disable(uart);
 	uart_irq_tx_disable(uart);
 	uart_irq_callback_set(uart, uart_cb);
 
 	while (uart_irq_rx_ready(uart)) {
+		ENG_LOG("uart irq rx ready and do uart fifo read\n");
 		uart_fifo_read(uart, &c, 1);
 	}
 
 	uart_irq_rx_enable(uart);
 
-	SYS_LOG_INF("open serial success");
+	ENG_LOG("open serial success\n");
 
 	k_sem_init(&uart_rx_sem, 0, 1);
 
-	SYS_LOG_INF("start engpc thread.");
+	ENG_LOG("start engpc thread.\n");
 	k_thread_create(&engpc_thread_data, engpc_stack,
 			ENGPC_STACK_SIZE,
 			(k_thread_entry_t)engpc_thread, NULL, NULL, NULL,
