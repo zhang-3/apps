@@ -1215,7 +1215,7 @@ error:
 	wifi_manager_notify(data, data_len);
 }
 
-void wifimgr_ctrl_iface_notify_set_mac_acl(char result)
+void wifimgr_ctrl_iface_set_mac_acl_cb(char result)
 {
 	/*BTD("%s \n", __func__);
 	char data[2] = {0};
@@ -1226,7 +1226,7 @@ void wifimgr_ctrl_iface_notify_set_mac_acl(char result)
 
 	wifi_manager_notify(data, sizeof(data));*/
 }
-
+/*
 void wifimgr_ctrl_iface_notify_set_mac_acl_timeout(void)
 {
 	BTD("%s \n", __func__);
@@ -1238,7 +1238,7 @@ void wifimgr_ctrl_iface_notify_set_mac_acl_timeout(void)
 
 	wifi_manager_notify(data, sizeof(data));
 }
-
+*/
 static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
 	.get_sta_conf_cb = wifimgr_ctrl_iface_get_sta_conf_cb,
 	.get_ap_conf_cb = wifimgr_ctrl_iface_get_ap_conf_cb,
@@ -1252,8 +1252,7 @@ static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
 	.notify_connect_timeout = wifimgr_ctrl_iface_notify_connect_timeout,
 	.notify_disconnect_timeout = wifimgr_ctrl_iface_notify_disconnect_timeout,
 	.notify_new_station = wifimgr_ctrl_iface_notify_new_station,
-	.notify_set_mac_acl = wifimgr_ctrl_iface_notify_set_mac_acl,
-	.notify_set_mac_acl_timeout = wifimgr_ctrl_iface_notify_set_mac_acl_timeout,
+	.set_mac_acl_cb = wifimgr_ctrl_iface_set_mac_acl_cb,
 };
 
 struct wifimgr_ctrl_cbs *get_wifimgr_cbs(void)
