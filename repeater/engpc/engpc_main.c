@@ -61,7 +61,7 @@ int get_user_diag_buf( unsigned char *buf, int len)
 			}
 		}
 	}
-	ENG_LOG("jessie: print ext_data_buf, ext_buf_len is %d\n", ext_buf_len);
+	ENG_LOG("print ext_data_buf, ext_buf_len is %d\n", ext_buf_len);
 	//eng_dump(ext_data_buf, ext_buf_len, ext_buf_len, 1, __FUNCTION__);
 	return is_find;
 }
@@ -120,7 +120,7 @@ int engpc_thread(int argc, char *argv[])
 
 	init_user_diag_buf();
 	while(1) {
-		ENG_LOG("jessie: %s before take sem\n", __FUNCTION__);
+		ENG_LOG("%s before take sem\n", __FUNCTION__);
 		k_sem_take(&uart_rx_sem, K_FOREVER);
 		if (offset > 0) {
 			//ENG_LOG("jessie: print log_data, offset is %d\n", offset);
@@ -150,7 +150,7 @@ int engpc_thread(int argc, char *argv[])
 			}
 
 			if (get_user_diag_buf(g_buf.buf, g_buf.used)){
-				ENG_LOG("jessie: find 0x7e\n");
+				ENG_LOG("%s find 0x7e\n", __FUNCTION__);
 				g_diag_status = ENG_DIAG_RECV_TO_AP;
 			}
 			has_processed = eng_diag(uart, ext_data_buf, ext_buf_len);
