@@ -12,6 +12,7 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 #include <misc/printk.h>
 #include <shell/shell.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <version.h>
 
 #include <net/net_core.h>
@@ -21,18 +22,19 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <flash.h>
 #include <device.h>
-
+#include <uwp5661/drivers/src/bt/uki_utlis.h>
 #include "ota_shell.h"
 
-#define OTA_ERR(fmt, ...) LOG_ERR(fmt, ##__VA_ARGS__)
-#define OTA_WARN(fmt, ...) LOG_WRN(fmt, ##__VA_ARGS__)
-#define OTA_INFO(fmt, ...) printk(fmt,  ##__VA_ARGS__)
+#define OTA_ERR		BTE
+#define OTA_WARN	BTW
+#define OTA_INFO	BTI
 
 #define DOWNLOAD_STACK_SIZE 500
 #define DOWNLOAD_PRIORITY 5
-
+/*
 static struct k_thread do_download_data;
 static K_THREAD_STACK_DEFINE(do_download_stack, DOWNLOAD_STACK_SIZE);
+*/
 
 #define WAIT_TIME (OTA_HTTP_REQ_TIMEOUT * 2)
 
@@ -67,22 +69,36 @@ struct waiter {
 /* Erase area, handling write protection and printing on error. */
 static int do_erase(off_t offset, size_t size)
 {
-	int ret;
+	int ret = 0;
+	int one_size;
+	int count = size;
 
-	ret = flash_write_protection_set(flash_device, false);
-	if (ret) {
-		OTA_ERR("Failed to disable flash protection (err: %d).\n", ret);
-		return ret;
+	while (count) {
+		if (size > FLASH_ERASE_BLOCK_SIZE) {
+			one_size = FLASH_ERASE_BLOCK_SIZE;
+		} else {
+			one_size = size;
+		}
+		ret = flash_write_protection_set(flash_device, false);
+		if (ret) {
+			OTA_ERR("Disable flash Protection Err:%d.\n", ret);
+			return ret;
+		}
+
+		ret = flash_erase(flash_device, offset, one_size);
+		if (ret) {
+			OTA_ERR("flash_erase failed (err:%d).\n", ret);
+			return ret;
+		}
+
+		ret = flash_write_protection_set(flash_device, true);
+		if (ret) {
+			OTA_ERR("Enable flash Protection Err:%d.\n", ret);
+		}
+
+		count -= one_size;
 	}
-	ret = flash_erase(flash_device, offset, size);
-	if (ret) {
-		OTA_ERR("flash_erase failed (err:%d).\n", ret);
-		return ret;
-	}
-	ret = flash_write_protection_set(flash_device, true);
-	if (ret) {
-		OTA_ERR("Failed to enable flash protection (err: %d).\n", ret);
-	}
+
 	return ret;
 }
 
@@ -92,12 +108,17 @@ static int do_read(off_t offset, size_t len)
 	u8_t temp[64];
 	int ret;
 
-	OTA_INFO("Read Addr=0x%08X.\n", offset);
+	OTA_INFO("Read Addr=0x%08X.\n", (unsigned int)offset);
 	memset(temp, 0x55, sizeof(temp));
 	ret = flash_read(flash_device, offset, temp, 10);
 	if (ret) {
 		OTA_ERR("flash_read error: %d\n", ret);
 	}
+
+	for (int i = 0; i < 10; i++) {
+		OTA_INFO(" %02X", temp[i]);
+	}
+	OTA_INFO("\n");
 	return ret;
 }
 
@@ -111,7 +132,7 @@ static int do_write(off_t offset, u8_t *buf, size_t len, bool read_back)
 		OTA_ERR("Failed to disable flash protection (err: %d).\n", ret);
 		return ret;
 	}
-	OTA_INFO("Write Addr=0x%08X.\n", offset);
+	OTA_INFO("Write Addr=0x%08X.\n", (unsigned int)offset);
 
 	ret = flash_write(flash_device, offset, buf, len);
 	if (ret) {
@@ -219,6 +240,7 @@ out:
 	k_sem_give(&waiter->wait);
 }
 
+#ifdef DO_ASYNC_HTTP_REQ
 static int
 do_async_http_req(struct http_ctx *ctx,
 		  enum http_method method,
@@ -268,6 +290,7 @@ out:
 
 	return ret;
 }
+#endif
 
 static int
 do_sync_http_req(struct http_ctx *ctx,
@@ -279,11 +302,12 @@ do_sync_http_req(struct http_ctx *ctx,
 	struct http_request req = { };
 	char temp[200];
 	int ret;
+	const char *status;
 
 	req.method = method;
 	req.url = url;
 	req.protocol = " " HTTP_PROTOCOL;
-	char *status = http_errno_description(ctx->http.parser.http_errno);
+	status = http_errno_description(ctx->http.parser.http_errno);
 
 	memset(temp, 0, sizeof(temp));
 	sprintf(temp,
@@ -296,28 +320,29 @@ do_sync_http_req(struct http_ctx *ctx,
 	ret = http_client_send_req(ctx, &req, NULL, result, sizeof(result),
 				   NULL, OTA_HTTP_REQ_TIMEOUT);
 	if (ret < 0) {
-		OTA_ERR("Cannot send %s request (%d)", http_method_str(method),
-			ret);
+		OTA_ERR("Cannot send %s request (%d)\n",
+			http_method_str(method), ret);
+		goto out;
+	}
+
+	if (!memcmp(ctx->http.rsp.http_status, HTTP_RSP_STATS_NOT_FOUND,
+		strlen(HTTP_RSP_STATS_NOT_FOUND))) {
+		OTA_ERR("Http Response: Not Found\n");
+		ret = -ENOENT;
 		goto out;
 	}
 
 	if (ctx->http.rsp.data_len > sizeof(result)) {
-		OTA_ERR("Result buffer overflow by %zd bytes",
+		OTA_ERR("Result buffer overflow by %zd bytes\n",
 			ctx->http.rsp.data_len - sizeof(result));
 
 		ret = -E2BIG;
 	} else {
-		OTA_INFO("HTTP server response status: %s",
-			 ctx->http.rsp.http_status);
-
 		if (ctx->http.parser.http_errno) {
 			if (method == HTTP_OPTIONS) {
 				/* Ignore error if OPTIONS is not found */
 				goto out;
 			}
-
-
-			OTA_INFO("HTTP parser status: %s", status);
 
 			ret = -EINVAL;
 			goto out;
@@ -333,11 +358,6 @@ do_sync_http_req(struct http_ctx *ctx,
 					       ctx->http.rsp.body_start,
 					       ctx->http.rsp.processed);
 				}
-
-				OTA_INFO("HTTP body: %zd bytes, "
-					 "expected: %zd bytes.\n",
-					 ctx->http.rsp.processed,
-					 ctx->http.rsp.content_length);
 			} else {
 				ret = -ENOPROTOOPT;
 				OTA_ERR("Error detected during HTTP msg "
@@ -393,6 +413,7 @@ repeate:
 				       NULL, NULL, req_count_start,
 				       req_count_end);
 #endif
+
 		if (ret < 0) {
 			repeate_count++;
 			OTA_ERR("HTTP do_async_http_req failed (%d).\n", ret);
@@ -408,7 +429,7 @@ repeate:
 		    || (req_count == 0)) {
 			OTA_INFO
 			    ("Now, Start to write flash, startAddr=0x%08X\n",
-			     flash_addr);
+			     (unsigned int)flash_addr);
 
 			do_write(flash_addr, bin_buff, BIN_BUF_SIZE, false);
 
@@ -454,18 +475,18 @@ static int ota_download(const struct shell *shell, size_t argc, char **argv)
 		req_count = OTA_KERNEL_BIN_SIZE;
 		download_url = OTA_KERNEL_BIN_URL;
 		flash_addr = FLASH_KERNEL_ADDR;
-		err = do_erase(FLASH_KERNEL_ADDR, FLASH_KERNEL_SIZE);
+		do_erase(FLASH_KERNEL_ADDR, FLASH_KERNEL_SIZE);
 	} else if (!strcmp(argv[1], "-m")) {
 		req_count = OTA_MODEM_BIN_SIZE;
 		download_url = OTA_MODEM_BIN_URL;
 		flash_addr = FLASH_MODEM_ADDR;
-		err = do_erase(FLASH_MODEM_ADDR, FLASH_MODEM_SIZE);
+		do_erase(FLASH_MODEM_ADDR, FLASH_MODEM_SIZE);
 
 	} else if (!strcmp(argv[1], "-t")) {
 		req_count = OTA_TEST_BIN_SIZE;
 		download_url = OTA_TEST_BIN_URL;
 		flash_addr = FLASH_KERNEL_ADDR;
-		err = do_erase(FLASH_KERNEL_ADDR, FLASH_KERNEL_SIZE);
+		do_erase(FLASH_KERNEL_ADDR, FLASH_KERNEL_SIZE);
 	} else {
 		shell_fprintf(shell, SHELL_ERROR,
 			      "Invalid input,Parametr is %d.\n", argv[1]);
@@ -479,6 +500,7 @@ static int ota_download(const struct shell *shell, size_t argc, char **argv)
 
 	do_download(download_url, req_count);
 
+	return 0;
 }
 
 static int ota_verify(const struct shell *shell, size_t argc, char **argv)
@@ -520,11 +542,11 @@ static int ota_verify(const struct shell *shell, size_t argc, char **argv)
 
 	memset(buf, 0, sizeof(buf));
 	ret =
-	    flash_read(flash_device, check_flash_addr1 - 10, buf, sizeof(buf));
+	    flash_read(flash_device, check_flash_addr1, buf, sizeof(buf));
 
 	OTA_INFO("addr1:");
 	for (int i = 0; i < 10; i++) {
-		OTA_INFO(" %02X", buf[0]);
+		OTA_INFO(" %02X", buf[i]);
 	}
 	OTA_INFO("\n");
 
@@ -532,9 +554,9 @@ static int ota_verify(const struct shell *shell, size_t argc, char **argv)
 	ret =
 	    flash_read(flash_device, check_flash_addr2 - 10, buf, sizeof(buf));
 
-	OTA_INFO("addr1:");
+	OTA_INFO("addr2:");
 	for (int i = 0; i < 10; i++) {
-		OTA_INFO(" %02X", buf[0]);
+		OTA_INFO(" %02X", buf[i]);
 	}
 	OTA_INFO("\n");
 
@@ -557,7 +579,7 @@ static int test_flash(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	/*erase flash */
-	int err = do_erase(test_flash_addr, FLASH_KERNEL_SIZE);
+	do_erase(test_flash_addr, FLASH_KERNEL_SIZE);
 
 	shell_fprintf(shell, SHELL_NORMAL, "test_flash_addr=%08X\n",
 		      test_flash_addr);
