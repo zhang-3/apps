@@ -36,6 +36,7 @@ typedef struct {
 	char ssid[MAX_SSID_LEN+1];
 	char bssid[BSSID_LEN+1];
 	char passwd[MAX_PSWD_LEN+1];
+	char security;
 	unsigned char band;
 	unsigned char channel;
 	unsigned char ch_width;

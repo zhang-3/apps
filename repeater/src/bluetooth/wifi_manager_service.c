@@ -141,7 +141,8 @@ void wifimgr_set_conf_and_connect(const void *buf)
 		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_STA,
 									(ssid_len > 0 ? conf.ssid : NULL),
 									(bssid_len > 0 ? conf.bssid : NULL),
-									(pwd_len > 0 ? conf.passwd : NULL),
+									conf.security,
+									(pwd_len > 0 ? conf.passwd : ""),
 									conf.band,
 									conf.channel,
 									0,
@@ -270,9 +271,9 @@ void wifimgr_get_conf(const void *buf)
 	wifi_manager_notify(data, sizeof(data));
 }
 
-void wifimgr_ctrl_iface_get_sta_conf_cb(char *ssid, char *bssid,
-				char *passphrase, unsigned char band,
-				unsigned char channel, char autorun)
+void wifimgr_ctrl_iface_get_sta_conf_cb(char *ssid, char *bssid, char *passphrase,
+				unsigned char band, unsigned char channel,
+				enum wifimgr_security security, char autorun)
 {
 	BTD("%s\n", __func__);
 	wifi_config_type conf;
@@ -355,9 +356,9 @@ void wifimgr_ctrl_iface_get_sta_conf_cb(char *ssid, char *bssid,
 	wifi_manager_notify(data, data_len + 4);
 }
 
-void wifimgr_ctrl_iface_get_ap_conf_cb(char *ssid, char *passphrase,
-				unsigned char band, unsigned char channel,
-				unsigned char channel_width, char autorun)
+void wifimgr_ctrl_iface_get_ap_conf_cb(char *ssid, char *passphrase, unsigned char band,
+			       unsigned char channel, unsigned char ch_width,
+			       enum wifimgr_security security, char autorun)
 {
 	BTD("%s\n", __func__);
 	wifi_config_type conf;
@@ -507,9 +508,8 @@ error:
 	wifi_manager_notify(data, data_len);
 }
 
-void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
-					char *host_ssid, char *host_bssid,
-					char host_channel, signed char host_rssi)
+void wifimgr_ctrl_iface_get_sta_status_cb(char status, char *own_mac,
+				  signed char host_rssi)
 {
 	BTD("%s, status:%d, signal:%d\n", __func__,status,host_rssi);
 	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
@@ -518,7 +518,7 @@ void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 	memcpy(cur_wifi_status.sta_mac, own_mac, 6);
 
 	if (WIFI_STA_STATUS_CONNECTED == status) {
-		if (host_ssid) {
+		/*if (host_ssid) {
 			memset(cur_wifi_status.u.sta.host_ssid, 0, sizeof(cur_wifi_status.u.sta.host_ssid));
 			memcpy(cur_wifi_status.u.sta.host_ssid, host_ssid, strlen(host_ssid));
 			cur_wifi_status.u.sta.h_ssid_len = strlen(host_ssid);
@@ -536,7 +536,7 @@ void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 		} else {
 			cur_wifi_status.u.sta.h_bssid_len = 0;
 			BTD("%s ,host_bssid = NULL\n", __func__);
-		}
+		}*/
 	} else {
 		cur_wifi_status.u.sta.h_ssid_len = 0;
 		cur_wifi_status.u.sta.h_bssid_len = 0;
@@ -545,9 +545,9 @@ void wifimgr_ctrl_iface_get_sta_status_cb(unsigned char status, char *own_mac,
 	k_sem_give(&get_status_sem);
 }
 
-void wifimgr_ctrl_iface_get_ap_status_cb(unsigned char status, char *own_mac,
-					 unsigned char sta_nr, char sta_mac_addrs[][6],
-					 unsigned char acl_nr, char acl_mac_addrs[][6])
+void wifimgr_ctrl_iface_get_ap_status_cb(char status, char *own_mac,
+				 unsigned char sta_nr, char sta_mac_addrs[][6],
+				 unsigned char acl_nr, char acl_mac_addrs[][6])
 {
 	BTD("%s, status:%d, sta_nr:%d\n", __func__,status,sta_nr);
 	BTD("%s, mac = %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,own_mac[0],own_mac[1],own_mac[2],own_mac[3],own_mac[4],own_mac[5]);
@@ -632,6 +632,7 @@ void wifimgr_start_ap(const void *buf)
 	char *ptr, mac_nic[7] = {0};
 	char ssid[MAX_SSID_LEN+1] = "UNISOC_";
 	char *passwd;
+	char security;
 	u8_t res_result = RESULT_SUCCESS;
 	int i;
 	int ret = -1;
@@ -654,12 +655,19 @@ void wifimgr_start_ap(const void *buf)
 		memcpy(ssid, p, data_len);
 	}
 
-	passwd = strlen(cur_wifi_status.passwd) ? cur_wifi_status.passwd : NULL;
+	if (!strlen(cur_wifi_status.passwd)) {
+		passwd = "";
+		security = WIFIMGR_SECURITY_OPEN;
+	} else {
+		passwd = cur_wifi_status.passwd;
+		security = WIFIMGR_SECURITY_PSK;
+	}
 
 	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf) {
 		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_AP,
 									ssid,
 									NULL,
+									security,
 									passwd,
 									0, 0, 0,
 									0);
@@ -1104,7 +1112,8 @@ void wifi_manager_notify(const void *data, u16_t len)
 }
 
 void wifimgr_ctrl_iface_notify_scan_res(char *ssid, char *bssid, unsigned char band,
-				unsigned char channel, signed char signal)
+				unsigned char channel, signed char signal,
+				enum wifimgr_security security)
 {
 	BTD("%s\n", __func__);
 	wifi_scan_res_type scan_res;
