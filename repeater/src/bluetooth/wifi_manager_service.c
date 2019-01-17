@@ -508,7 +508,7 @@ error:
 	wifi_manager_notify(data, data_len);
 }
 
-void wifimgr_ctrl_iface_get_sta_status_cb(char status, char *own_mac,
+void wifimgr_ctrl_iface_get_sta_status_cb(char status, char *own_mac, char *host_bssid,
 				  signed char host_rssi)
 {
 	BTD("%s, status:%d, signal:%d\n", __func__,status,host_rssi);
@@ -526,7 +526,7 @@ void wifimgr_ctrl_iface_get_sta_status_cb(char status, char *own_mac,
 		} else {
 			cur_wifi_status.u.sta.h_ssid_len = 0;
 			BTD("%s ,host_ssid = NULL\n", __func__);
-		}
+		}*/
 
 		if (host_bssid) {
 			memset(cur_wifi_status.u.sta.host_bssid, 0, sizeof(cur_wifi_status.u.sta.host_bssid));
@@ -536,7 +536,7 @@ void wifimgr_ctrl_iface_get_sta_status_cb(char status, char *own_mac,
 		} else {
 			cur_wifi_status.u.sta.h_bssid_len = 0;
 			BTD("%s ,host_bssid = NULL\n", __func__);
-		}*/
+		}
 	} else {
 		cur_wifi_status.u.sta.h_ssid_len = 0;
 		cur_wifi_status.u.sta.h_bssid_len = 0;
