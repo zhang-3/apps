@@ -120,7 +120,7 @@ int engpc_thread(int argc, char *argv[])
 
 	init_user_diag_buf();
 	while(1) {
-		ENG_LOG("%s before take sem\n", __FUNCTION__);
+		//ENG_LOG("%s before take sem\n", __FUNCTION__);
 		k_sem_take(&uart_rx_sem, K_FOREVER);
 		if (offset > 0) {
 			//ENG_LOG("jessie: print log_data, offset is %d\n", offset);
@@ -184,7 +184,7 @@ int engpc_init(struct device *dev)
 		ENG_LOG("Can not find device %s.\n", UART_DEV);
 		return -1;
 	}
-	ENG_LOG("engpc_init: get %s(%p)\n", UART_DEV, uart);
+	//ENG_LOG("engpc_init: get %s(%p)\n", UART_DEV, uart);
 
 	uart_irq_rx_disable(uart);
 	uart_irq_tx_disable(uart);
@@ -197,7 +197,7 @@ int engpc_init(struct device *dev)
 
 	uart_irq_rx_enable(uart);
 
-	ENG_LOG("open serial success\n");
+	//ENG_LOG("open serial success\n");
 
 	k_sem_init(&uart_rx_sem, 0, 1);
 
