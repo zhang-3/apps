@@ -6,9 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../engpc/eng_sscanf.h"
-
-
 #define ETH_ALEN 		    (6)
 #define IWNPI_SSID_LEN              (32)
 #define IWNPI_ASSOC_RESP_DATA_LEN   (280)

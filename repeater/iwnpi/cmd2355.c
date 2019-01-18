@@ -156,7 +156,7 @@ int mac_addr_a2n(unsigned char *mac_addr, char *arg)
             *cp = 0;
             cp++;
         }
-        if (eng_sscanf(arg, "%x", &temp) != 1)
+        if (sscanf(arg, "%x", &temp) != 1)
             return -1;
         if (temp < 0 || temp > 255)
             return -1;
