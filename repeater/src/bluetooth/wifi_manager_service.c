@@ -273,7 +273,7 @@ void wifimgr_get_conf(const void *buf)
 
 void wifimgr_ctrl_iface_get_sta_conf_cb(char *ssid, char *bssid, char *passphrase,
 				unsigned char band, unsigned char channel,
-				enum wifimgr_security security, char autorun)
+				enum wifimgr_security security, int autorun)
 {
 	BTD("%s\n", __func__);
 	wifi_config_type conf;
@@ -358,7 +358,7 @@ void wifimgr_ctrl_iface_get_sta_conf_cb(char *ssid, char *bssid, char *passphras
 
 void wifimgr_ctrl_iface_get_ap_conf_cb(char *ssid, char *passphrase, unsigned char band,
 			       unsigned char channel, unsigned char ch_width,
-			       enum wifimgr_security security, char autorun)
+			       enum wifimgr_security security, int autorun)
 {
 	BTD("%s\n", __func__);
 	wifi_config_type conf;

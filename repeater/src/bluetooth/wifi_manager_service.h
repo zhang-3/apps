@@ -40,7 +40,7 @@ typedef struct {
 	unsigned char band;
 	unsigned char channel;
 	unsigned char ch_width;
-	char autorun;
+	int autorun;
 }wifi_config_type;
 
 typedef struct {
