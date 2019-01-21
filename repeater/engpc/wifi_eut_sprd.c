@@ -1,6 +1,5 @@
 #include "wifi_eut_sprd.h"
 #include "eut_opt.h"
-#include "eng_sscanf.h"
 
 #define CONFIG_SYSTEM_IWNPI
 #define NUM_ELEMS(x) (sizeof(x) / sizeof(x[0]))
@@ -158,8 +157,9 @@ static int get_iwnpi_ret_line(const char *flag, const char *out_str, const int o
 #endif
 	ENG_LOG("%s(), buf = %s\n", __FUNCTION__, buf);
 
-	if (NULL == flag) {   //only for return one data, format is "ret: %d:end"
-		eng_sscanf(buf, IWNPI_RET_ONE_DATA, &ret);
+	if (NULL == flag) {
+		/*only for return one data, format is "ret: %d:end"*/
+		sscanf(buf, IWNPI_RET_ONE_DATA, &ret);
 	} else if (NULL != flag && NULL != strstr(buf, flag)) {
 		str1 = strstr(buf, IWNPI_RET_BEGIN);
 		str2 = strstr(buf, IWNPI_RET_END);
@@ -201,7 +201,7 @@ static int get_iwnpi_exec_status(void)
 
 	ENG_LOG("start to get exec status\n");
 	if (get_iwnpi_ret_line(IWNPI_RET_STA_FLAG, buf, TMP_BUF_SIZE) > 0)
-		eng_sscanf(buf, "status %d", &sta);
+		sscanf(buf, "status %d", &sta);
 	ENG_LOG("leaving %s(), get status = %d", __FUNCTION__, sta);
 	return sta;
 }
@@ -760,18 +760,11 @@ int wifi_channel_get_marlin3(char *rsp)
 		ENG_LOG("%s(), get_channel run err[%d].\n", __FUNCTION__, ret);
 		goto err;
 	}
-	eng_sscanf(cmd, "primary_channel:%d,center_channel:%d\n", &primary_channel, &center_channel);
-	//  #ifdef __MARLIN3_USE_TWO_CHANNELS__
+	sscanf(cmd, "primary_channel:%d,center_channel:%d\n", &primary_channel,
+	       &center_channel);
 	if (primary_channel < 1 || center_channel < 1)
 		goto err;
 	sprintf(rsp, "%s%d,%d", WIFI_CHANNEL_REQ_RET, primary_channel, center_channel);
-	//  #else /*__MARLIN3_USE_TWO_CHANNELS__*/
-	//    chn = match_channel_table_by_chn(primary_channel, center_channel);
-	//   ENG_LOG("%s(), get_channel-> %s [%d, %d].\n", __FUNCTION__, (chn != NULL ? chn->name : "null"), primary_channel, center_channel);
-	//   if (chn == NULL)
-	//     goto err;
-	//   sprintf(rsp, "%s%s", WIFI_CHANNEL_REQ_RET, chn->name);
-	// #endif  /*__MARLIN3_USE_TWO_CHANNELS__*/
 
 	rsp_debug(rsp);
 	return 0;
@@ -838,7 +831,7 @@ int wifi_txgainindex_get(char *rsp)
 	   ENG_LOG("%s(), get_tx_power run err\n", __FUNCTION__);
 	   goto err;
 	   }
-	   eng_sscanf(cmd, "level_a:%d,level_b:%d\n", &level_a, &level_b);
+	   sscanf(cmd, "level_a:%d,level_b:%d\n", &level_a, &level_b);
 	   sprintf(rsp, "%s%d,%d", WIFI_TXGAININDEX_REQ_RET, level_a, level_b);
 	   rsp_debug(rsp);
 	   return 0;
@@ -1101,9 +1094,10 @@ int wifi_rxpktcnt_get(char *rsp)
 		ENG_LOG("%s, no iwnpi\n", __FUNCTION__);
 		goto err;
 	}
-	eng_sscanf(cmd, "reg value: rx_end_count=%d rx_err_end_count=%d fcs_fail_count=%d ",
-		   &(cnt->rx_end_count), &(cnt->rx_err_end_count),
-		   &(cnt->fcs_fail_count));
+	sscanf(cmd,
+	       "reg value: rx_end_count=%d rx_err_end_count=%d fcs_fail_count=%d ",
+	       &(cnt->rx_end_count), &(cnt->rx_err_end_count),
+	       &(cnt->fcs_fail_count));
 
 	sprintf(rsp, "%s%d,%d,%d", EUT_WIFI_RXPKTCNT_REQ_RET,
 		g_wifi_data.cnt.rx_end_count, g_wifi_data.cnt.rx_err_end_count,
@@ -1493,7 +1487,7 @@ int wifi_tx_power_level_get(char *rsp)
 		memset(cmd, 0x00, WIFI_EUT_COMMAND_MAX_LEN);
 		if (get_iwnpi_ret_line(IWNPI_RET_PWR_FLAG, cmd, WIFI_EUT_COMMAND_MAX_LEN) <= 0)
 			goto err;
-		eng_sscanf(cmd, "level_a:%d,level_b:%d", &level_a, &level_b);
+		sscanf(cmd, "level_a:%d,level_b:%d", &level_a, &level_b);
 		snprintf(rsp, WIFI_EUT_COMMAND_RSP_MAX_LEN, "%s%d,%d",
 				WIFI_TX_POWER_LEVEL_REQ_RET, level_a, level_b);
 		rsp_debug(rsp);
@@ -2262,7 +2256,8 @@ int wifi_cdec_efuse_get(char *rsp)
 	}
 
 	ENG_LOG("efuse_str : %s\n", efuse_str);
-	eng_sscanf(efuse_str,"efuse:%02x%02x%02x%02x", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
+	sscanf(efuse_str, "efuse:%02x%02x%02x%02x", &tmp[0],
+	       &tmp[1], &tmp[2], &tmp[3]);
 
 	/* low 3 byte contain cdec info */
 	for (index = 2; index >= 0; index--) {
@@ -2363,7 +2358,7 @@ int wifi_ant_info(char *rsp)
 		ENG_LOG("iwnpi wlan0 get mac cmd, err_code = %d", ret);
 		goto err;
 	}
-	eng_sscanf(ant_info, "ANTINFO=%d,%d", &rf_2g, &rf_5g);
+	sscanf(ant_info, "ANTINFO=%d,%d", &rf_2g, &rf_5g);
 
 	printf("chan1 : %d, chan2 : %d\n", rf_2g, rf_5g);
 	sprintf(rsp, "%s%d,%d", WIFI_ANTINFO_REQ_RET, rf_2g, rf_5g);
@@ -2392,7 +2387,7 @@ int wifi_efuse_info(char *rsp)
 		ENG_LOG("%s() iwnpi wlan0 get efuse info, err_code = %d", __func__, ret);
 		goto err;
 	}
-	eng_sscanf(efuse_info, "EFUSEINFO=%d,%d,%d", &cdec, &mac, &tpc);
+	sscanf(efuse_info, "EFUSEINFO=%d,%d,%d", &cdec, &mac, &tpc);
 
 	ENG_LOG("CDEC: %d, MAC: %d, TPC: %d\n", cdec, mac, tpc);
 	sprintf(rsp, "%s%d,%d,%d", WIFI_EFUSEINFO_REQ_RET, cdec, mac, tpc);
