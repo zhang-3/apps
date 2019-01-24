@@ -2981,7 +2981,7 @@ int wlnpi_cmd_set_cbank_reg(int argc, char **argv, unsigned char *s_buf, int *s_
 
 	if (val > 255)
 	{
-		ENG_LOG("%s param = %d", __func__, val);
+		ENG_LOG("%s param = %ld", __func__, val);
 		return -1;
 	}
 
@@ -3535,7 +3535,7 @@ int wlnpi_show_get_efuse(struct wlnpi_cmd_t *cmd, unsigned char *r_buf, int r_le
 int wlnpi_cmd_set_mac_efuse(int argc, char **argv,  unsigned char *s_buf, int *s_len )
 {
     if(2 != argc) {
-        ENG_LOG("%s invalid argc : %d\n", argc);
+        ENG_LOG("%s invalid argc : %d\n", __func__, argc);
         return -1;
     }
     ENG_LOG("argv[0] : %s\n", argv[0]);
@@ -3602,7 +3602,7 @@ int wlnpi_cmd_set_tssi(int argc, char **argv, unsigned char *s_buf, int *s_len)
 
 	if (val > 255)
 	{
-		ENG_LOG("param error! val = %d", val);
+		ENG_LOG("param error! val = %ld", val);
 		return -1;
 	}
 
@@ -3642,7 +3642,7 @@ int wlnpi_cmd_set_cca_th(int argc, char **argv, unsigned char *s_buf, int *s_len
 
 	if (val > 255)
 	{
-		ENG_LOG("param error! val = %d", val);
+		ENG_LOG("param error! val = %ld", val);
 		return -1;
 	}
 

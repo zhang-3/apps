@@ -17,9 +17,12 @@ struct device *dev;
 extern int npi_wifi_iface_init(struct device **dev);
 extern int npi_open_station(struct device *dev);
 extern int npi_close_station(struct device *dev);
-extern int npi_cmd_send_recv(struct device *dev, int ictx_id, char *t_buf, uint32_t t_len, char *r_buf, uint32_t *r_len);
+extern int npi_cmd_send_recv(struct device *dev, int ictx_id,
+			     char *t_buf, uint32_t t_len, char *r_buf,
+			     uint32_t *r_len);
 extern int npi_get_mac(struct device *dev, char * buf);
-extern int iwnpi_hex_dump(unsigned char *name, unsigned short nLen, unsigned char *pData, unsigned short len);
+extern int iwnpi_hex_dump(unsigned char *name, unsigned short nLen,
+			  unsigned char *pData, unsigned short len);
 
 #define SUCCESS (0)
 #define ARG_ERROR  (-1)
@@ -70,7 +73,9 @@ int sprdwl_wlnpi_exec_status(char *buf, int len)
 	return 0;
 }
 
-static int sprdwl_npi_cmd_handler(wlnpi_t *wlnpi, unsigned char *s_buf, int s_len, unsigned char *r_buf, unsigned int *r_len)
+static int sprdwl_npi_cmd_handler(wlnpi_t *wlnpi, unsigned char *s_buf,
+				  int s_len, unsigned char *r_buf,
+				  unsigned int *r_len)
 {
 	WLNPI_CMD_HDR_T *hdr = NULL;
 	char dbgstr[64] = { 0 };
@@ -84,10 +89,13 @@ static int sprdwl_npi_cmd_handler(wlnpi_t *wlnpi, unsigned char *s_buf, int s_le
 	sprintf(dbgstr, "[iwnpi][SEND][%d]:", s_len);
 	hdr = (WLNPI_CMD_HDR_T *)s_buf;
 	ENG_LOG("%s type is %d, subtype %d\n", dbgstr, hdr->type, hdr->subtype);
-	//iwnpi_hex_dump((unsigned char *)"s_buf:\n", strlen("s_buf:\n"), (unsigned char *)s_buf, s_len);
+	/*
+	iwnpi_hex_dump((unsigned char *)"s_buf:\n", strlen("s_buf:\n"),
+		       (unsigned char *)s_buf, s_len);
+	*/
 
-	//ret = wifi_cmd_npi_send(dev, ictx_id, (char *)s_buf, s_len, (char *)r_buf, r_len);
-	ret = npi_cmd_send_recv(dev, ictx_id, (char *)s_buf, s_len, (char *)r_buf, r_len);
+	ret = npi_cmd_send_recv(dev, ictx_id, (char *)s_buf, (uint32_t)s_len,
+				(char *)r_buf, (uint32_t *)r_len);
 	if (ret < 0)
 	{
 		ENG_LOG("npi command send or recv error!\n");
@@ -136,14 +144,15 @@ static int exit_mode(void)
 	return ret;
 }
 
-static int sprdwl_npi_get_info_handler(wlnpi_t *wlnpi, unsigned char *s_buf, int s_len, unsigned char *r_buf, unsigned int *r_len)
+static int sprdwl_npi_get_info_handler(wlnpi_t *wlnpi, unsigned char *s_buf,
+				       int s_len, unsigned char *r_buf,
+				       unsigned int *r_len)
 {
 	int ictx_id = 0;
 	int ret = 0;
 
 	ENG_LOG("enter %s\n", __func__);
 	ictx_id = wlnpi->ictx_id;
-	//ret = wifi_cmd_npi_get_mac(ictx_id, (char *)r_buf);
 	ret = npi_get_mac(dev, (char *)r_buf);
 	ENG_LOG("%s() ret from wifi drv is %d\n", __func__, ret);
 
@@ -198,18 +207,12 @@ static int get_drv_info(wlnpi_t *wlnpi, struct wlnpi_cmd_t *cmd)
 		return -1;
 	}
 	ENG_LOG("ADL levaling %s(), addr is %02x:%02x:%02x:%02x:%02x:%02x :end\n",
-		__func__, wlnpi->mac[0], wlnpi->mac[1], wlnpi->mac[2],wlnpi->mac[3],
-		wlnpi->mac[4], wlnpi->mac[5]);
+		__func__, wlnpi->mac[0], wlnpi->mac[1], wlnpi->mac[2],
+		wlnpi->mac[3], wlnpi->mac[4], wlnpi->mac[5]);
 	return 0;
 }
 
 extern void do_help(void);
-
-int iwnpi_main(const struct shell *shell, int argc, char **argv)
-{
-	iwnpi_cmd(argc, argv);
-	return 0;
-}
 
 int iwnpi_cmd(int argc, char **argv)
 {
@@ -297,8 +300,13 @@ int iwnpi_cmd(int argc, char **argv)
 
 	ENG_LOG("msg_recv->type = %d, cmd->id = %d, subtype = %d, r_len = %d\n",
 		msg_recv->type, cmd->id, msg_recv->subtype, r_len);
-	//iwnpi_hex_dump((unsigned char *)"r_buf:\n", strlen("r_buf:\n"), (unsigned char *)r_buf, r_len);
-	if( (MARLIN_TO_HOST_REPLY != msg_recv->type) || (cmd->id != msg_recv->subtype) || r_len < sizeof(WLNPI_CMD_HDR_R) )
+	/*
+	iwnpi_hex_dump((unsigned char *)"r_buf:\n", strlen("r_buf:\n"),
+			 (unsigned char *)r_buf, r_len);
+	*/
+	if( (MARLIN_TO_HOST_REPLY != msg_recv->type)
+	   || (cmd->id != msg_recv->subtype)
+	   || r_len < sizeof(WLNPI_CMD_HDR_R) )
 	{
 		ENG_LOG("communication error\n");
 		ENG_LOG("msg_recv->type = %d, cmd->id = %d, subtype = %d, r_len = %d\n",
@@ -314,12 +322,20 @@ int iwnpi_cmd(int argc, char **argv)
 	} else {
 		show_status(status);
 	}
-	snprintf(iwnpi_exec_status_buf, IWNPI_EXEC_STATUS_BUF_LEN, "ret: status %d :end", status);
+	snprintf(iwnpi_exec_status_buf, IWNPI_EXEC_STATUS_BUF_LEN,
+		 "ret: status %d :end", status);
 	ENG_LOG("ret: status %d :end\n", status);
 	ENG_LOG("%s\n", iwnpi_exec_status_buf);
-	cmd->show(cmd, r_buf + sizeof(WLNPI_CMD_HDR_R), r_len - sizeof(WLNPI_CMD_HDR_R));
+	cmd->show(cmd, r_buf + sizeof(WLNPI_CMD_HDR_R),
+		  r_len - sizeof(WLNPI_CMD_HDR_R));
 
 EXIT:
+	return 0;
+}
+
+int iwnpi_main(const struct shell *shell, size_t argc, char **argv)
+{
+	iwnpi_cmd(argc, argv);
 	return 0;
 }
 
