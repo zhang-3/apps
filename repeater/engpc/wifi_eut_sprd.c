@@ -1,3 +1,4 @@
+#include <string.h>
 #include "wifi_eut_sprd.h"
 #include "eut_opt.h"
 
@@ -132,7 +133,7 @@ static char *mattch_rate_table_index(const int rate) {
  *   ------------------
  *   other:
  ********************************************************************/
-static int get_iwnpi_ret_line(const char *flag, const char *out_str, const int out_len) {
+static int get_iwnpi_ret_line(const char *flag, char *out_str, int out_len) {
 	//we can call iwnpi interface to get return value, no need operate file.
 	char *str1 = NULL;
 	char *str2 = NULL;
@@ -314,13 +315,13 @@ static inline int exec_iwnpi_cmd_with_status(int argc, char **argv)
 	return ((ret = exec_iwnpi_cmd(argc, argv)) == 0 ? get_iwnpi_exec_status() : ret);
 }
 
-static inline int return_ok(const char *rsp) {
+static inline int return_ok(char *rsp) {
 	strcpy(rsp, EUT_WIFI_OK);
 	rsp_debug(rsp);
 	return 0;
 }
 
-static inline int return_err(const char *rsp) {
+static inline int return_err(char *rsp) {
 	sprintf(rsp, "%s%s", EUT_WIFI_ERROR, "error");
 	rsp_debug(rsp);
 	return -1;
@@ -486,7 +487,6 @@ err:
 
 static int stop_wifieut(char *rsp)
 {
-	int ret;
 	int argc = 3;
 	char *argv[3] = {"iwnpi", "wlan0"};
 
@@ -1520,7 +1520,6 @@ err:
  *
  ********************************************************************/
 int wifi_pkt_length_set(int pkt_len, char *rsp) {
-	int ret = -1;
 	char cmd[8] = {0x00};
 	int argc = 4;
 	char *argv[4] = {"iwnpi", "wlan0", "set_pkt_len"};
@@ -2007,7 +2006,7 @@ int wifi_mac_filter_set(int on_off, const char *mac, char *rsp)
 
 		if (mac &&(strlen(mac) < (WIFI_MAC_STR_MAX_LEN + 2 + strlen("\r\n")))) {
 			ENG_LOG("%s(), mac's length is invalid, len = %lu", __func__,
-					strlen(mac));
+					(long unsigned int)strlen(mac));
 			goto err;
 		}
 
@@ -2256,8 +2255,9 @@ int wifi_cdec_efuse_get(char *rsp)
 	}
 
 	ENG_LOG("efuse_str : %s\n", efuse_str);
-	sscanf(efuse_str, "efuse:%02x%02x%02x%02x", &tmp[0],
-	       &tmp[1], &tmp[2], &tmp[3]);
+	sscanf(efuse_str, "efuse:%02x%02x%02x%02x", (unsigned int *)&tmp[0],
+	       (unsigned int *)&tmp[1], (unsigned int *)&tmp[2],
+	       (unsigned int *)&tmp[3]);
 
 	/* low 3 byte contain cdec info */
 	for (index = 2; index >= 0; index--) {

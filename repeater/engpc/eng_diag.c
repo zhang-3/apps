@@ -315,10 +315,10 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 	char *tmp = buf;
 	char *start = buf;
 
-	ENG_LOG("buf: 0x%x.\n", buf);
+	ENG_LOG("buf: 0x%x.\n", (unsigned int)buf);
 	ENG_LOG("module=%d, buf = %s \n", module_index, buf);
 	tmp = strchr(buf, '?');
-	ENG_LOG("tmp = 0x%x.\n", tmp);
+	ENG_LOG("tmp = 0x%x.\n", (unsigned int)tmp);
 	if (tmp != NULL) {
 		ENG_LOG("it is a query command\n");
 		start = strchr(buf, '=');
@@ -734,7 +734,7 @@ int eng_diag_write2pc(struct device *uart, char* diag_data, int r_cnt)
 	int offset = 0;  // reset the offset
 	int w_cnt = 0;
 
-	ENG_LOG("%s() rcnt is : %d\n", r_cnt);
+	ENG_LOG("%s() rcnt is : %d\n", __func__, r_cnt);
 	do {
 		w_cnt = uart_fifo_fill(uart, diag_data + offset, r_cnt);
 

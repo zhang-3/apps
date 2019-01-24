@@ -184,7 +184,7 @@ int eng_linuxcmd_wifieutmode(char *req, char *rsp) {
   ENG_LOG("test... req: %s\n", req);
   ENG_LOG("%s(), cmd = %s\n", __func__, req);
 
-  ENG_LOG("req: 0x%x.\n", req);
+  ENG_LOG("req: 0x%x.\n", (unsigned int)req);
   ret = eng_atdiag_wifi_euthdlr(req, len, rsp, WIFI_MODULE_INDEX);
 
   return ret;

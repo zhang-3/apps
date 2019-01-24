@@ -29,8 +29,6 @@ typedef enum {
 
 #define LOG_LEN		2048
 static unsigned char log_data[LOG_LEN];
-static unsigned int log_data_len;
-//static char backup_data_buf[DATA_BUF_SIZE];
 static int g_diag_status = ENG_DIAG_RECV_TO_AP;
 static struct k_sem	uart_rx_sem;
 static bt_bqb_state_t current_bqb_state = BQB_CLOSED;

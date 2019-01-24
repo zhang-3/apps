@@ -250,6 +250,7 @@ int wifi_sigbandwidth_set(int band_width, char *rsp);
 int wifi_mac_efuse_get(char *rsp);
 int wifi_mac_efuse_set(const char *wifi_mac, const char* bt_mac, char *rsp);
 int wifi_ant_info(char *rsp);
+int wifi_efuse_info(char *rsp);
 int wifi_cdec_efuse_set(int cdec, char *rsp);
 int wifi_cdec_efuse_get(char *rsp);
 int wifi_cbank_set(int cbank, char *rsp);
