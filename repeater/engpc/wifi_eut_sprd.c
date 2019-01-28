@@ -1,8 +1,8 @@
 #include <string.h>
+#include <errno.h>
 #include "wifi_eut_sprd.h"
 #include "eut_opt.h"
 
-#define CONFIG_SYSTEM_IWNPI
 #define NUM_ELEMS(x) (sizeof(x) / sizeof(x[0]))
 #define wifi_eut_debug
 #define WIFI_DRIVER_MODULE_PATH "/lib/modules/sprdwl_ng.ko"
@@ -146,7 +146,7 @@ static int get_iwnpi_ret_line(const char *flag, char *out_str, int out_len) {
 		return WIFI_INT_INVALID_RET;
 	}
 
-#ifdef CONFIG_SYSTEM_IWNPI
+#ifdef CONFIG_IWNPI
 	if(NULL != flag) {
 		if (strcmp(flag, IWNPI_RET_STA_FLAG) == 0)
 			sprdwl_wlnpi_exec_status(buf, TMP_BUF_SIZE);
@@ -271,8 +271,10 @@ static inline int exec_iwnpi_cmd(int argc, char **argv)
 		ENG_LOG("argv[%d] : %s \n", index, argv[index]);
 	}
 
-#ifdef CONFIG_SYSTEM_IWNPI
+#ifdef CONFIG_IWNPI
 	return iwnpi_cmd(argc, argv);
+#else
+	return -ENOTSUP;
 #endif
 }
 

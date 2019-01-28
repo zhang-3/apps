@@ -22,12 +22,22 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <flash.h>
 #include <device.h>
+
+#ifdef CONFIG_BT_UWP5661
 #include <uwp5661/drivers/src/bt/uki_utlis.h>
+#endif /* FIXME: app should not use hal header */
+
 #include "ota_shell.h"
 
+#ifdef CONFIG_BT_UWP5661
 #define OTA_ERR		BTE
 #define OTA_WARN	BTW
 #define OTA_INFO	BTI
+#else
+#define OTA_ERR(fmt, ...) printf("[ERR] "fmt"\n", ##__VA_ARGS__);
+#define OTA_WARN(fmt, ...) printf("[WARN] "fmt"\n", ##__VA_ARGS__);
+#define OTA_INFO(fmt, ...) printf("[INFO] "fmt"\n", ##__VA_ARGS__);
+#endif /* FIXME: app should not use hal header */
 
 #define DOWNLOAD_STACK_SIZE 500
 #define DOWNLOAD_PRIORITY 5

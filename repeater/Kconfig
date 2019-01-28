@@ -16,17 +16,30 @@ source "Kconfig.zephyr"
 config ENGPC
 	bool "ENGPC test tool"
 	default y
+	depends on IWNPI
+	depends on BT_TEST
 	help
-		Enable ENGPC test tool for bt/wifi npi test
+	   Enable ENGPC test tool for bt/wifi npi test
 
 config IWNPI
-        bool "iwnpi tool for wifi npi test"
-        default y
-        help
-          Enable the iwnpi tool for wifi npi test
+	bool "iwnpi tool for wifi npi test"
+	default y
+	select NETWORKING
+	depends on WIFI_UWP
+	help
+	   Enable the iwnpi tool for wifi npi test
 
 config BT_TEST
-        bool "test tool for bt npi"
-        default y
-        help
-          Enable the bt npi test
+	bool "test tool for bt npi"
+	default y
+	depends on BT_UWP5661
+	help
+	   Enable the bt npi test
+
+config OTA
+	bool
+	default y
+	select HTTP
+	select HTTP_CLINET
+	help
+	   Enable ota

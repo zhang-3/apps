@@ -5,7 +5,6 @@ project(NONE)
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/test.c)
-target_sources(app PRIVATE src/ota/ota_shell.c)
 
 include_directories($ENV{ZEPHYR_BASE}/ext/hal/unisoc/)
 
@@ -17,9 +16,15 @@ target_sources_ifdef(
   )
 
 target_sources_ifdef(
-  CONFIG_BT_UWP5661
+  CONFIG_WIFIMGR
   app PRIVATE
   src/bluetooth/wifi_manager_service.c
+  )
+
+target_sources_ifdef(
+  CONFIG_OTA
+  app PRIVATE
+  src/ota/ota_shell.c
   )
 
 add_subdirectory_ifdef(CONFIG_ENGPC	engpc)

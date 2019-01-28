@@ -79,9 +79,9 @@ static void bt_ready(int err)
 	printk("Bluetooth initialized\n");
 
 	throughput_init();
-/*#ifdef CONFIG_BT_WIFIMGR_SERVICE*/
+#ifdef CONFIG_WIFIMGR
 	wifi_manager_service_init();
-/*#endif*/
+#endif
 	change_device_name();
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad),
