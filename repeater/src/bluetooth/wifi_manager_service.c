@@ -69,12 +69,18 @@ int wifimgr_check_wifi_status(char *iface_name)
 	BTD("%s, iface_name = %s\n", __func__,iface_name);
 	int ret = -1;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->get_status) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->get_status(iface_name);
+	ret = wifimgr_get_ctrl(iface_name);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->get_status) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->get_status(iface_name);
 	} else {
 		BTD("%s, get_status = NULL\n", __func__);
 		goto error;
 	}
+	wifimgr_release_ctrl(iface_name);
 
 	if (0 != ret) {
 		BTD("%s, get_status fail,err = %d\n", __func__,ret);
@@ -137,8 +143,8 @@ void wifimgr_set_conf_and_connect(const void *buf)
 	BTD("%s, passwd = %s\n", __func__, conf.passwd);
 	strcpy(cur_wifi_status.passwd, conf.passwd);
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_STA,
+	if (wifimgr_get_ctrl_ops()->set_conf) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_STA,
 									(ssid_len > 0 ? conf.ssid : NULL),
 									(bssid_len > 0 ? conf.bssid : NULL),
 									conf.security,
@@ -251,12 +257,18 @@ void wifimgr_get_conf(const void *buf)
 	char data[2] = {0};
 	u8_t res_result = RESULT_SUCCESS;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->get_conf) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->get_conf(WIFIMGR_IFACE_NAME_STA);
+	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_STA);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		return;
+	}
+	if (wifimgr_get_ctrl_ops()->get_conf) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->get_conf(WIFIMGR_IFACE_NAME_STA);
 	} else {
 		BTD("%s, get_conf = NULL\n", __func__);
 		res_result = RESULT_FAIL;
 	}
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_STA);
 
 	if (0 != ret) {
 		BTD("%s, get_conf fail,err = %d\n", __func__,ret);
@@ -663,8 +675,8 @@ void wifimgr_start_ap(const void *buf)
 		security = WIFIMGR_SECURITY_PSK;
 	}
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_AP,
+	if (wifimgr_get_ctrl_ops()->set_conf) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_AP,
 									ssid,
 									NULL,
 									security,
@@ -690,13 +702,19 @@ void wifimgr_start_ap(const void *buf)
 		goto error;
 	}
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->start_ap) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->start_ap();
+	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_AP);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->start_ap) {
+		ret = wifimgr_get_ctrl_ops()->start_ap();
 	} else {
 		BTD("%s, start_ap = NULL\n", __func__);
 		res_result = RESULT_FAIL;
 		goto error;
 	}
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_AP);
 
 	if (0 != ret) {
 		BTD("%s, start_ap fail,error = %d\n", __func__,ret);
@@ -718,13 +736,19 @@ void wifimgr_stop_ap(const void *buf)
 	u8_t res_result = RESULT_SUCCESS;
 	int ret = -1;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->stop_ap) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->stop_ap();
+	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_AP);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->stop_ap) {
+		ret = wifimgr_get_ctrl_ops()->stop_ap();
 	} else {
 		BTD("%s, stop_ap = NULL\n", __func__);
 		res_result = RESULT_FAIL;
 		goto error;
 	}
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_AP);
 
 	if (0 != ret) {
 		BTD("%s, stop_ap fail,error = %d\n", __func__,ret);
@@ -770,13 +794,19 @@ void wifimgr_set_mac_acl(const void *buf)
 
 	pmac = data_len == BSSID_LEN ? station_mac : NULL;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_mac_acl) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->set_mac_acl(1, pmac);
+	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_AP);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->set_mac_acl) {
+		ret = wifimgr_get_ctrl_ops()->set_mac_acl(1, pmac);
 	} else {
 		BTD("%s, set_mac_acl = NULL\n", __func__);
 		res_result = RESULT_FAIL;
 		goto error;
 	}
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_AP);
 
 	if (0 != ret) {
 		BTD("%s, set_mac_acl fail,err = %d\n", __func__,ret);
@@ -802,12 +832,18 @@ int wifimgr_do_scan(int retry_num)
 
 	for (i = 0, scan_result = 0; (i < retry_num) && (1 != scan_result); i++) {
 		BTD("%s,do the %dth scan\n", __func__,i+1);
-		if(wifimgr_get_ctrl_ops(get_wifimgr_cbs())->scan) {
-			ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->scan();
+		ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_STA);
+		if (ret) {
+			BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+			goto error;
+		}
+		if(wifimgr_get_ctrl_ops()->scan) {
+			ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->scan();
 		} else {
 			BTD("%s, scan = NULL\n", __func__);
 			goto error;
 		}
+		wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_STA);
 
 		if (0 != ret) {
 			BTD("%s, scan fail,err = %d\n", __func__,ret);
@@ -831,12 +867,18 @@ int wifimgr_do_connect(void)
 	BTD("%s\n", __func__);
 	int ret = -1;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->connect) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->connect();
+	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_STA);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->connect) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->connect();
 	} else {
 		BTD("%s, connect = NULL\n", __func__);
 		goto error;
 	}
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_STA);
 
 	if (0 != ret) {
 		BTD("%s, connect fail,err = %d\n", __func__,ret);
@@ -854,12 +896,18 @@ int wifimgr_do_disconnect(u8_t flags)
 	BTD("%s\n", __func__);
 	int ret = -1;
 
-	if(wifimgr_get_ctrl_ops(get_wifimgr_cbs())->disconnect) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->disconnect();
+	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_STA);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if(wifimgr_get_ctrl_ops()->disconnect) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->disconnect();
 	} else {
 		BTD("%s, disconnect = NULL\n", __func__);
 		goto error;
 	}
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_STA);
 
 	if (0 != ret) {
 		BTD("%s, disconnect fail-1,err = %d\n", __func__,ret);
@@ -889,12 +937,18 @@ int wifimgr_do_open(char *iface_name)
 	BTD("%s\n", __func__);
 	int ret = -1;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->open) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->open(iface_name);
+	ret = wifimgr_get_ctrl(iface_name);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->open) {
+		ret = wifimgr_get_ctrl_ops()->open(iface_name);
 	} else {
 		BTD("%s, open = NULL\n", __func__);
 		goto error;
 	}
+	wifimgr_release_ctrl(iface_name);
 
 	if (0 != ret) {
 		BTD("%s, open fail,err = %d\n", __func__,ret);
@@ -912,12 +966,18 @@ int wifimgr_do_close(char *iface_name)
 	BTD("%s\n", __func__);
 	int ret = -1;
 
-	if (wifimgr_get_ctrl_ops(get_wifimgr_cbs())->close) {
-		ret = wifimgr_get_ctrl_ops(get_wifimgr_cbs())->close(iface_name);
+	ret = wifimgr_get_ctrl(iface_name);
+	if (ret) {
+		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
+		goto error;
+	}
+	if (wifimgr_get_ctrl_ops()->close) {
+		ret = wifimgr_get_ctrl_ops()->close(iface_name);
 	} else {
 		BTD("%s, close = NULL\n", __func__);
 		goto error;
 	}
+	wifimgr_release_ctrl(iface_name);
 
 	if (0 != ret) {
 		BTD("%s, close fail,err = %d\n", __func__,ret);
@@ -1224,17 +1284,6 @@ error:
 	wifi_manager_notify(data, data_len);
 }
 
-void wifimgr_ctrl_iface_set_mac_acl_cb(char result)
-{
-	/*BTD("%s \n", __func__);
-	char data[2] = {0};
-	u8_t res_result = RESULT_FAIL;
-
-	data[0] = RESULT_STATION_REPORT;
-	data[1] = res_result;
-
-	wifi_manager_notify(data, sizeof(data));*/
-}
 /*
 void wifimgr_ctrl_iface_notify_set_mac_acl_timeout(void)
 {
@@ -1261,7 +1310,6 @@ static struct wifimgr_ctrl_cbs wifi_ctrl_cbs = {
 	.notify_connect_timeout = wifimgr_ctrl_iface_notify_connect_timeout,
 	.notify_disconnect_timeout = wifimgr_ctrl_iface_notify_disconnect_timeout,
 	.notify_new_station = wifimgr_ctrl_iface_notify_new_station,
-	.set_mac_acl_cb = wifimgr_ctrl_iface_set_mac_acl_cb,
 };
 
 struct wifimgr_ctrl_cbs *get_wifimgr_cbs(void)
