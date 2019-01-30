@@ -15,16 +15,12 @@ char *devname = WIFINPI_DEV_NAME_STA;
 
 int npi_wifi_iface_init(struct device **dev)
 {
-	//char *devname = CONFIG_WIFI_STA_DRV_NAME;
-
-
 	ENG_LOG("enter %s\n", __func__);
 
 	if (!devname)
 		return NULL;
 
 	*dev = device_get_binding(devname);
-//	ENG_LOG("%s dev addr is %p\n", __func__, *dev);
 	if (!(*dev)) {
 		ENG_LOG("%s() failed to get device %s!\n", __func__, devname);
 		return -1;
@@ -78,8 +74,8 @@ int npi_close_station(struct device *dev)
 }
 
 int npi_cmd_send_recv(struct device *dev, int ictx_id,
-		     char *t_buf, u32_t t_len, char *r_buf,
-		     u32_t *r_len)
+		      char *t_buf, u32_t t_len, char *r_buf,
+		      u32_t *r_len)
 {
 	struct wifi_drv_api *mgmt_api =
 	    (struct wifi_drv_api *)dev->driver_api;
@@ -90,5 +86,6 @@ int npi_cmd_send_recv(struct device *dev, int ictx_id,
 		return -EIO;
 
 	ENG_LOG("leaving %s\n", __func__);
-	return mgmt_api->hw_test(dev, ictx_id, (char *)t_buf, t_len, (char *)r_buf, r_len);
+	return mgmt_api->hw_test(dev, ictx_id, (char *)t_buf,
+				 t_len, (char *)r_buf, r_len);
 }

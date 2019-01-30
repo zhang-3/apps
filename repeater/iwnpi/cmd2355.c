@@ -26,7 +26,9 @@ static char *iwnpi_bss_get_vendor_ie(const char *bss, int vendor_type);
 static int wlnpi_ap_info_print_ht_capa(const char *data);
 static int wlnpi_ap_info_print_ht_mcs(const char *data);
 static int wlnpi_ap_info_print_wps(const char *data);
-//static int iwnpi_hex_dump(unsigned char *name, unsigned short nLen, unsigned char *pData, unsigned short len);
+/*static int iwnpi_hex_dump(unsigned char *name, unsigned short nLen,
+ *			    unsigned char *pData, unsigned short len);
+ */
 
 struct chan_t g_chan_list[] ={
 	/*2.4G--20M*/
@@ -124,60 +126,60 @@ bool is_digital(const char *str)
 
 static iwnpi_rate_table g_rate_table[] =
 {
-    {0x82, "1[b]"},
-    {0x84, "2[b]"},
-    {0x8B, "5.5[b]"},
-    {0x0C, "6"},
-    {0x12, "9"},
-    {0x96, "11[b]"},
-    {0x18, "12"},
-    {0x24, "18"},
-    {0x30, "24"},
-    {0x48, "36"},
-    {0x60, "48"},
-    {0x6C, "54"},
+	{0x82, "1[b]"},
+	{0x84, "2[b]"},
+	{0x8B, "5.5[b]"},
+	{0x0C, "6"},
+	{0x12, "9"},
+	{0x96, "11[b]"},
+	{0x18, "12"},
+	{0x24, "18"},
+	{0x30, "24"},
+	{0x48, "36"},
+	{0x60, "48"},
+	{0x6C, "54"},
 
-    /* 11g */
-    {0x02, "1[b]"},
-    {0x04, "2[b]"},
-    {0x0B, "5.5[b]"},
-    {0x16, "11[b]"},
+	/* 11g */
+	{0x02, "1[b]"},
+	{0x04, "2[b]"},
+	{0x0B, "5.5[b]"},
+	{0x16, "11[b]"},
 };
 
 int mac_addr_a2n(unsigned char *mac_addr, char *arg)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < ETH_ALEN; i++)
-    {
-        int temp = 0;
-        char *cp = strchr(arg, ':');
-        if (cp) {
-            *cp = 0;
-            cp++;
-        }
-        if (sscanf(arg, "%x", &temp) != 1)
-            return -1;
-        if (temp < 0 || temp > 255)
-            return -1;
+	for (i = 0; i < ETH_ALEN; i++)
+	{
+		int temp = 0;
+		char *cp = strchr(arg, ':');
+		if (cp) {
+			*cp = 0;
+			cp++;
+		}
+		if (sscanf(arg, "%x", &temp) != 1)
+			return -1;
+		if (temp < 0 || temp > 255)
+			return -1;
 
-        mac_addr[i] = temp;
-        if (!cp)
-            break;
-        arg = cp;
-    }
-    if (i < ETH_ALEN - 1)
-        return -1;
+		mac_addr[i] = temp;
+		if (!cp)
+			break;
+		arg = cp;
+	}
+	if (i < ETH_ALEN - 1)
+		return -1;
 
-    return 0;
+	return 0;
 }
 
 int wlnpi_cmd_no_argv(int argc, char **argv,  unsigned char *s_buf, int *s_len )
 {
-    if(argc > 0)
-        return -1;
-    *s_len = 0;
-    return 0;
+	if(argc > 0)
+		return -1;
+	*s_len = 0;
+	return 0;
 }
 
 int wlnpi_show_only_status(struct wlnpi_cmd_t *cmd, unsigned char *r_buf, int r_len)
@@ -256,11 +258,15 @@ int wlnpi_show_get_mac(struct wlnpi_cmd_t *cmd, unsigned char *r_buf, int r_len)
 {
 	ENG_LOG("ADL entry %s(), r_len = %d\n", __func__,r_len);
 
-	ENG_LOG("ret: mac: %02x:%02x:%02x:%02x:%02x:%02x :end\n", r_buf[0], r_buf[1], r_buf[2],r_buf[3],r_buf[4], r_buf[5]);
-	snprintf(iwnpi_ret_buf, WLNPI_RESULT_BUF_LEN, "ret: mac: %02x:%02x:%02x:%02x:%02x:%02x :end\n", r_buf[0], r_buf[1], r_buf[2],r_buf[3],r_buf[4], r_buf[5]);
+	ENG_LOG("ret: mac: %02x:%02x:%02x:%02x:%02x:%02x :end\n",
+		r_buf[0], r_buf[1], r_buf[2],r_buf[3],r_buf[4], r_buf[5]);
+	snprintf(iwnpi_ret_buf, WLNPI_RESULT_BUF_LEN,
+		 "ret: mac: %02x:%02x:%02x:%02x:%02x:%02x :end\n",
+		 r_buf[0], r_buf[1], r_buf[2],r_buf[3],r_buf[4], r_buf[5]);
 	ENG_LOG("iwnpi_ret_buf is %s\n", iwnpi_ret_buf);
 
-	ENG_LOG("ADL leaving %s(), mac = %02x:%02x:%02x:%02x:%02x:%02x, return 0\n", __func__, r_buf[0], r_buf[1], r_buf[2],r_buf[3],r_buf[4], r_buf[5]);
+	ENG_LOG("ADL leaving %s(), mac = %02x:%02x:%02x:%02x:%02x:%02x, return 0\n",
+		__func__, r_buf[0], r_buf[1], r_buf[2],r_buf[3],r_buf[4], r_buf[5]);
 
 	return 0;
 }
