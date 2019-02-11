@@ -13,6 +13,12 @@ source "subsys/net/Kconfig.template.log_config.net"
 
 source "Kconfig.zephyr"
 
+config DHRYSTONE
+        bool "dhrystone benchmark"
+        default n
+	help
+           Enable the dhrystone benchmark.
+
 config ENGPC
 	bool "ENGPC test tool"
 	default y
