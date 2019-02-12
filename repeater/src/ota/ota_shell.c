@@ -23,24 +23,11 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 #include <flash.h>
 #include <device.h>
 
-#ifdef CONFIG_BT_UWP5661
-#include <uwp5661/drivers/src/bt/uki_utlis.h>
-#endif /* FIXME: app should not use hal header */
-
 #include "ota_shell.h"
-
-#ifdef CONFIG_BT_UWP5661
-#define OTA_ERR		BTE
-#define OTA_WARN	BTW
-#define OTA_INFO	BTI
-#else
-#define OTA_ERR(fmt, ...) printf("[ERR] "fmt"\n", ##__VA_ARGS__);
-#define OTA_WARN(fmt, ...) printf("[WARN] "fmt"\n", ##__VA_ARGS__);
-#define OTA_INFO(fmt, ...) printf("[INFO] "fmt"\n", ##__VA_ARGS__);
-#endif /* FIXME: app should not use hal header */
 
 #define DOWNLOAD_STACK_SIZE 500
 #define DOWNLOAD_PRIORITY 5
+
 /*
 static struct k_thread do_download_data;
 static K_THREAD_STACK_DEFINE(do_download_stack, DOWNLOAD_STACK_SIZE);
@@ -69,6 +56,11 @@ static u8_t bin_buff[BIN_BUF_SIZE];
 
 static struct device *flash_device;
 
+#define OTA_IMAGE_OK_OFFS(bank_offs) \
+			(bank_offs + FLASH_AREA_IMAGE_0_SIZE - 16 - 8)
+#define OTA_MAGIC_OFFS(bank_offs) \
+			(bank_offs + FLASH_AREA_IMAGE_0_SIZE - 16)
+
 struct waiter {
 	struct http_ctx *ctx;
 	struct k_sem wait;
@@ -76,12 +68,48 @@ struct waiter {
 	size_t header_len;
 };
 
+/* blank check when erased flash */
+static int do_checkblank(off_t offset, size_t len)
+{
+	u8_t temp[64];
+	int count = len;
+	int read_size = 0;
+	int read_addr = offset;
+
+	OTA_INFO("check Addr=0x%08X, len=%d.\n", (unsigned int)offset, len);
+	while (count > 0) {
+		if (count > sizeof(temp)) {
+			read_size = sizeof(temp);
+			count -= read_size;
+		} else {
+			read_size = count;
+			count = 0;
+		}
+
+		memset(temp, 0, sizeof(temp));
+		flash_read(flash_device, read_addr, temp, read_size);
+
+		for (int i = 0; i < read_size; i++) {
+			if (temp[i] != 0xff) {
+				OTA_ERR("Blank Check Failed, Addr(0x%08X)=%d",
+					(read_addr + i), temp[i]);
+				return 0;
+			}
+		}
+
+		read_addr += read_size;
+	}
+
+	return 1;
+}
+
 /* Erase area, handling write protection and printing on error. */
 static int do_erase(off_t offset, size_t size)
 {
 	int ret = 0;
 	int one_size;
 	int count = size;
+	int offset_temp = offset;
 
 	while (count) {
 		if (size > FLASH_ERASE_BLOCK_SIZE) {
@@ -95,7 +123,9 @@ static int do_erase(off_t offset, size_t size)
 			return ret;
 		}
 
-		ret = flash_erase(flash_device, offset, one_size);
+		OTA_INFO("Erase Addr=0x%08X, size=%d.\n",
+			 (unsigned int)offset_temp, one_size);
+		ret = flash_erase(flash_device, offset_temp, one_size);
 		if (ret) {
 			OTA_ERR("flash_erase failed (err:%d).\n", ret);
 			return ret;
@@ -107,28 +137,10 @@ static int do_erase(off_t offset, size_t size)
 		}
 
 		count -= one_size;
+		offset_temp += one_size;
 	}
 
-	return ret;
-}
-
-/* Read bytes, dumping contents to console and printing on error. */
-static int do_read(off_t offset, size_t len)
-{
-	u8_t temp[64];
-	int ret;
-
-	OTA_INFO("Read Addr=0x%08X.\n", (unsigned int)offset);
-	memset(temp, 0x55, sizeof(temp));
-	ret = flash_read(flash_device, offset, temp, 10);
-	if (ret) {
-		OTA_ERR("flash_read error: %d\n", ret);
-	}
-
-	for (int i = 0; i < 10; i++) {
-		OTA_INFO(" %02X", temp[i]);
-	}
-	OTA_INFO("\n");
+	ret = do_checkblank(offset, size);
 	return ret;
 }
 
@@ -136,6 +148,7 @@ static int do_read(off_t offset, size_t len)
 static int do_write(off_t offset, u8_t *buf, size_t len, bool read_back)
 {
 	int ret;
+	u8_t *read_buf = NULL;
 
 	ret = flash_write_protection_set(flash_device, false);
 	if (ret) {
@@ -155,8 +168,25 @@ static int do_write(off_t offset, u8_t *buf, size_t len, bool read_back)
 		return ret;
 	}
 	if (read_back) {
-		OTA_INFO("Reading back written bytes:\n");
-		ret = do_read(offset, 10);
+		read_buf = malloc(len);
+		if (read_buf == NULL) {
+			OTA_ERR
+			    ("Read back check failed! Can't malloc buffer\n");
+			return -1;
+		}
+		OTA_INFO("Reading back written bytes:%d\n", len);
+		memset(read_buf, 0, len);
+		flash_read(flash_device, offset, read_buf, len);
+		for (int i = 0; i < len; i++) {
+			if (read_buf[i] != buf[i]) {
+				OTA_ERR
+				    ("ERR: i=%d,write:%d,read:%d\n",
+				     i, buf[i], read_buf[i]);
+				ret = -1;
+				break;
+			}
+		}
+		free(read_buf);
 	}
 	return ret;
 }
@@ -336,7 +366,7 @@ do_sync_http_req(struct http_ctx *ctx,
 	}
 
 	if (!memcmp(ctx->http.rsp.http_status, HTTP_RSP_STATS_NOT_FOUND,
-		strlen(HTTP_RSP_STATS_NOT_FOUND))) {
+		    strlen(HTTP_RSP_STATS_NOT_FOUND))) {
 		OTA_ERR("Http Response: Not Found\n");
 		ret = -ENOENT;
 		goto out;
@@ -387,6 +417,7 @@ static int do_download(char *url, int file_length)
 	int req_count_start = 0;
 	int req_count_end = 0;
 	int repeate_count = 0;
+	int write_size = 0;
 
 	/*init http client */
 	int ret = http_client_init(&http_ctx, OTA_SVR_ADDR, OTA_SVR_PORT, NULL,
@@ -406,8 +437,10 @@ static int do_download(char *url, int file_length)
 			req_count_end =
 			    req_count_start + OTA_COUNT_EACH_ONE - 1;
 			req_count -= OTA_COUNT_EACH_ONE;
+			write_size += OTA_COUNT_EACH_ONE;
 		} else {
 			req_count_end = req_count_start + req_count - 1;
+			write_size += req_count;
 			req_count = 0;	/*the last request */
 		}
 
@@ -425,6 +458,7 @@ repeate:
 #endif
 
 		if (ret < 0) {
+
 			repeate_count++;
 			OTA_ERR("HTTP do_async_http_req failed (%d).\n", ret);
 			if (repeate_count >= OTA_HTTP_REPEAT_REQ_MAX) {
@@ -441,9 +475,10 @@ repeate:
 			    ("Now, Start to write flash, startAddr=0x%08X\n",
 			     (unsigned int)flash_addr);
 
-			do_write(flash_addr, bin_buff, BIN_BUF_SIZE, false);
+			do_write(flash_addr, bin_buff, write_size, true);
 
 			flash_addr = flash_addr + BIN_BUF_SIZE;
+			write_size = 0;
 			memset(bin_buff, 0, sizeof(bin_buff));
 		}
 
@@ -451,17 +486,32 @@ repeate:
 		req_count_start = req_count_end + 1;
 		repeate_count = 0;
 	}
-
+	ret = 1;
 out:
 	http_release(&http_ctx);
 
 	OTA_INFO(" Download Done!\n");
 
+	return ret;
+}
+
+static int ota_set_pending(void)
+{
+	u32_t off = OTA_MAGIC_OFFS(FLASH_AREA_IMAGE_1_OFFSET);
+	u32_t boot_img_magic_1[4] = {
+		0xf395c277,
+		0x7fefd260,
+		0x0f505235,
+		0x8079b62c,
+	};
+
+	do_write(off, (u8_t *) boot_img_magic_1, 16, true);
 	return 0;
 }
 
 static int ota_download(const struct shell *shell, size_t argc, char **argv)
 {
+	int ret = 0;
 	int err = shell_cmd_precheck(shell, (argc == 2), NULL, 0);
 
 	if (err) {
@@ -503,12 +553,14 @@ static int ota_download(const struct shell *shell, size_t argc, char **argv)
 		return err;
 	}
 
-	shell_fprintf(shell, SHELL_NORMAL, "test bin url=%s\n", download_url);
+	shell_fprintf(shell, SHELL_NORMAL, "download_url=%s\n", download_url);
 
 	recv_count = 0;
 	memset(bin_buff, 0, sizeof(bin_buff));
 
-	do_download(download_url, req_count);
+	ret = do_download(download_url, req_count);
+
+	ota_set_pending();
 
 	return 0;
 }
@@ -516,7 +568,7 @@ static int ota_download(const struct shell *shell, size_t argc, char **argv)
 static int ota_verify(const struct shell *shell, size_t argc, char **argv)
 {
 	unsigned long int check_flash_addr1, check_flash_addr2;
-	int check_size = 10;
+	int check_size = 32;
 	char buf[check_size];
 
 	int ret = shell_cmd_precheck(shell, (argc == 2), NULL, 0);
@@ -528,14 +580,16 @@ static int ota_verify(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	/*check the parameter */
-	if (!strcmp(argv[1], "-k")) {
-		check_flash_addr1 = FLASH_KERNEL_ADDR;
-		check_flash_addr2 = FLASH_KERNEL_ADDR + OTA_KERNEL_BIN_SIZE;
-		OTA_INFO("Check Kernel Flash Partition...\n");
-	} else if (!strcmp(argv[1], "-m")) {
-		check_flash_addr1 = FLASH_MODEM_ADDR;
-		check_flash_addr2 = FLASH_MODEM_ADDR + OTA_MODEM_BIN_SIZE;
-		OTA_INFO("Check Medem Flash Partition...\n");
+	if (!strcmp(argv[1], "-s0")) {
+		check_flash_addr1 = FLASH_AREA_IMAGE_0_OFFSET;
+		check_flash_addr2 =
+		    FLASH_AREA_IMAGE_0_OFFSET + FLASH_KERNEL_SIZE - 32;
+		OTA_INFO("Check slot0 Partition...\n");
+	} else if (!strcmp(argv[1], "-s1")) {
+		check_flash_addr1 = FLASH_AREA_IMAGE_1_OFFSET;
+		check_flash_addr2 =
+		    FLASH_AREA_IMAGE_1_OFFSET + FLASH_KERNEL_SIZE - 32;
+		OTA_INFO("Check slot1 Partition...\n");
 	} else {
 		shell_fprintf(shell, SHELL_ERROR, "Invalid input.\n");
 		return -1;
@@ -551,21 +605,19 @@ static int ota_verify(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	memset(buf, 0, sizeof(buf));
-	ret =
-	    flash_read(flash_device, check_flash_addr1, buf, sizeof(buf));
+	ret = flash_read(flash_device, check_flash_addr1, buf, sizeof(buf));
 
 	OTA_INFO("addr1:");
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < sizeof(buf); i++) {
 		OTA_INFO(" %02X", buf[i]);
 	}
 	OTA_INFO("\n");
 
 	memset(buf, 0, sizeof(buf));
-	ret =
-	    flash_read(flash_device, check_flash_addr2 - 10, buf, sizeof(buf));
+	ret = flash_read(flash_device, check_flash_addr2, buf, sizeof(buf));
 
 	OTA_INFO("addr2:");
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < sizeof(buf); i++) {
 		OTA_INFO(" %02X", buf[i]);
 	}
 	OTA_INFO("\n");
@@ -575,8 +627,8 @@ static int ota_verify(const struct shell *shell, size_t argc, char **argv)
 
 static int test_flash(const struct shell *shell, size_t argc, char **argv)
 {
-	char buf[10];
-	unsigned long int test_flash_addr = FLASH_KERNEL_ADDR;
+	char buf[16];
+	unsigned long int test_flash_addr = FLASH_AREA_IMAGE_1_OFFSET;
 
 	/*init flash */
 	flash_device = device_get_binding(DT_FLASH_DEV_NAME);
@@ -587,21 +639,14 @@ static int test_flash(const struct shell *shell, size_t argc, char **argv)
 		printk("**No flash device found!**\n");
 		return -1;
 	}
-
-	/*erase flash */
-	do_erase(test_flash_addr, FLASH_KERNEL_SIZE);
-
 	shell_fprintf(shell, SHELL_NORMAL, "test_flash_addr=%08X\n",
 		      test_flash_addr);
-
-	OTA_INFO("addr1:%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
-		 buf[0], buf[1], buf[2], buf[3], buf[4],
-		 buf[5], buf[6], buf[7], buf[8], buf[9]);
+	/*erase flash */
+	do_erase(FLASH_AREA_IMAGE_1_OFFSET, FLASH_AREA_IMAGE_1_SIZE);
 
 	memset(buf, 0x55, sizeof(buf));
 	/*write and check */
 	do_write(test_flash_addr, buf, sizeof(buf), true);
-
 	return 0;
 }
 

@@ -2,10 +2,22 @@
 #ifndef __OTA_SHELL__
 #define __OTA_SHELL__
 
-#define FLASH_KERNEL_ADDR       (0x02180000ul - CONFIG_FLASH_BASE_ADDRESS)
-#define FLASH_KERNEL_SIZE       0x80000	/*512KB */
+#include <zephyr.h>
+#include <misc/printk.h>
 
-#define FLASH_MODEM_ADDR        (0x02200000ul - CONFIG_FLASH_BASE_ADDRESS)
+#define OTA_ERR(fmt, ...)   printf("[ERR] "fmt"\n", ##__VA_ARGS__)
+#define OTA_WARN(fmt, ...)  printf("[WARN] "fmt"\n", ##__VA_ARGS__)
+#define OTA_INFO(fmt, ...)  printf("[INFO] "fmt"\n", ##__VA_ARGS__)
+
+#define FLASH_AREA_BOOTLOADER                    0
+#define FLASH_AREA_IMAGE_0                       1
+#define FLASH_AREA_IMAGE_1                       2
+#define FLASH_AREA_IMAGE_SCRATCH                 3
+
+#define FLASH_KERNEL_ADDR       FLASH_AREA_IMAGE_1_OFFSET
+#define FLASH_KERNEL_SIZE       FLASH_AREA_IMAGE_1_SIZE	/*512KB */
+
+#define FLASH_MODEM_ADDR        (0x02300000ul - CONFIG_FLASH_BASE_ADDRESS)
 #define FLASH_MODEM_SIZE        0xC0000	/*768KB */
 
 #define FLASH_ERASE_BLOCK_SIZE	(64 * 1024)
@@ -24,11 +36,12 @@
 #define OTA_COUNT_EACH_ONE      2048	/*64*1024 //64Kb */
 
 #define OTA_MODEM_BIN_SIZE      618512	/*byte */
-#define OTA_KERNEL_BIN_SIZE      221080	/*byte */
+#define OTA_KERNEL_BIN_SIZE     364716	/*byte */
 #define OTA_TEST_BIN_SIZE       147992
 
 #define OTA_HTTP_REQ_TIMEOUT K_SECONDS(10)
 
 #define OTA_HTTP_REPEAT_REQ_MAX 10
+
 
 #endif /*__OTA_SHELL__*/
