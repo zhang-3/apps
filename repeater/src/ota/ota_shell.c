@@ -495,9 +495,21 @@ out:
 	return ret;
 }
 
-static int ota_set_pending(void)
+/**
+ * Marks the image in slot 1 as pending.  On the next reboot, the system will
+ * perform a one-time boot of the slot 1 image.
+ *
+ * @param permanent         Whether the image should be used permanently or
+ *                              only tested once:
+ *                                  0=run image once, then confirm or revert.
+ *                                  1=run image forever.
+ *
+ * @return                  0 on success; nonzero on failure.
+ */
+static int ota_set_pending(bool permanent)
 {
-	u32_t off = OTA_MAGIC_OFFS(FLASH_AREA_IMAGE_1_OFFSET);
+	u32_t off;
+	u8_t buf[8];
 	u32_t boot_img_magic_1[4] = {
 		0xf395c277,
 		0x7fefd260,
@@ -505,7 +517,16 @@ static int ota_set_pending(void)
 		0x8079b62c,
 	};
 
+	off = OTA_MAGIC_OFFS(FLASH_AREA_IMAGE_1_OFFSET);
 	do_write(off, (u8_t *) boot_img_magic_1, 16, true);
+
+	if (permanent) {
+		off = OTA_IMAGE_OK_OFFS(FLASH_AREA_IMAGE_1_OFFSET);
+		memset(buf, 0xFF, sizeof(buf));
+		buf[0] = 0x01;
+		do_write(off, buf, sizeof(buf), true);
+	}
+
 	return 0;
 }
 
@@ -560,7 +581,7 @@ static int ota_download(const struct shell *shell, size_t argc, char **argv)
 
 	ret = do_download(download_url, req_count);
 
-	ota_set_pending();
+	ota_set_pending(true);
 
 	return 0;
 }
@@ -639,12 +660,13 @@ static int test_flash(const struct shell *shell, size_t argc, char **argv)
 		printk("**No flash device found!**\n");
 		return -1;
 	}
+
 	shell_fprintf(shell, SHELL_NORMAL, "test_flash_addr=%08X\n",
 		      test_flash_addr);
 	/*erase flash */
 	do_erase(FLASH_AREA_IMAGE_1_OFFSET, FLASH_AREA_IMAGE_1_SIZE);
 
-	memset(buf, 0x55, sizeof(buf));
+	memset(buf, 0xAA, sizeof(buf));
 	/*write and check */
 	do_write(test_flash_addr, buf, sizeof(buf), true);
 	return 0;
@@ -658,7 +680,7 @@ SHELL_CREATE_STATIC_SUBCMD_SET(ota_cmd)
 	ota_download),
 	SHELL_CMD(verify, NULL,
 	"verify the bin code.\n"
-	"Usage: download <type> -k:check kernel -m:check modem",
+	"Usage: download <type> -s0:check slot0 -s1:check slot1",
 	ota_verify),
 	SHELL_CMD(testflash, NULL,
 	"test flash for writing and reading.",

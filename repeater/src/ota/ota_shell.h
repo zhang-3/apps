@@ -36,7 +36,7 @@
 #define OTA_COUNT_EACH_ONE      2048	/*64*1024 //64Kb */
 
 #define OTA_MODEM_BIN_SIZE      618512	/*byte */
-#define OTA_KERNEL_BIN_SIZE     364716	/*byte */
+#define OTA_KERNEL_BIN_SIZE     377520	/*byte */
 #define OTA_TEST_BIN_SIZE       147992
 
 #define OTA_HTTP_REQ_TIMEOUT K_SECONDS(10)
