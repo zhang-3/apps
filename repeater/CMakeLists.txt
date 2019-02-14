@@ -22,6 +22,12 @@ target_sources_ifdef(
   )
 
 target_sources_ifdef(
+  CONFIG_FLASH_TEST
+  app PRIVATE
+  src/sfc/sfc_flash_test.c
+  )
+
+target_sources_ifdef(
   CONFIG_OTA
   app PRIVATE
   src/ota/ota_shell.c

@@ -42,6 +42,12 @@ config BT_TEST
 	help
 	   Enable the bt npi test
 
+config FLASH_TEST
+	bool "test tool for flash npi"
+	default y
+	help
+	   Enable the flash test
+
 config OTA
 	bool
 	default y
