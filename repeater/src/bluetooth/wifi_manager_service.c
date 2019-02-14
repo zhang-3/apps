@@ -218,6 +218,122 @@ error:
 	wifi_manager_notify(data, sizeof(data));
 }
 
+void wifimgr_set_conf_and_interval(const void *buf)
+{
+	BTD("%s\n", __func__);
+	wifi_config_type conf;
+	const u8_t *p = buf;
+	u16_t vlen = 0;
+	int ret = -1;
+	char data[2] = {0};
+	u8_t res_result = RESULT_SUCCESS;
+	u16_t bssid_len = 0;
+	u16_t pwd_len = 0;
+	u16_t ssid_len = 0;
+
+	memset(&conf, 0, sizeof(conf));
+	vlen = sys_get_le16(p);
+	p += 2;
+	BTD("%s, AllDateLen = 0x%x\n", __func__, vlen);
+
+	ssid_len = sys_get_le16(p);
+	p += 2;
+	BTD("%s, SsidDataLen = 0x%x\n", __func__, ssid_len);
+
+	memcpy(conf.ssid,p,ssid_len);
+	p+=ssid_len;
+	BTD("%s, ssid = %s\n", __func__, conf.ssid);
+
+	bssid_len = sys_get_le16(p);
+	p += 2;
+	BTD("%s, bSsidDataLen = 0x%x\n", __func__, bssid_len);
+
+	memcpy(conf.bssid,p,bssid_len);
+	p+=bssid_len;
+	for (int i = 0; i < bssid_len; i++) {
+		BTD("bssid = 0x%02x\n", conf.bssid[i]);
+	}
+
+	pwd_len = sys_get_le16(p);
+	p += 2;
+	BTD("%s, PsdDataLen = 0x%x\n", __func__, pwd_len);
+
+	memcpy(conf.passwd,p,pwd_len);
+	p+=pwd_len;
+	BTD("%s, passwd = %s\n", __func__, conf.passwd);
+	strcpy(cur_wifi_status.passwd, conf.passwd);
+
+	conf.autorun = sys_get_le32(p);
+	p += 4;
+	BTD("%s, conf.autorun = %d\n", __func__, conf.autorun);
+
+	if (wifimgr_get_ctrl_ops()->set_conf) {
+		ret = wifimgr_get_ctrl_ops_cbs(get_wifimgr_cbs())->set_conf(WIFIMGR_IFACE_NAME_STA,
+									(ssid_len > 0 ? conf.ssid : NULL),
+									(bssid_len > 0 ? conf.bssid : NULL),
+									conf.security,
+									(pwd_len > 0 ? conf.passwd : ""),
+									conf.band,
+									conf.channel,
+									0,
+									conf.autorun);
+	} else {
+		BTD("%s, set_conf = NULL\n", __func__);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+	if (0 != ret) {
+		BTD("%s, set_conf fail,error = %d\n", __func__,ret);
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+	ret = wifimgr_check_wifi_status(WIFIMGR_IFACE_NAME_STA);
+	if (0 == ret) {
+		switch(cur_wifi_status.sta_status){
+			case WIFI_STA_STATUS_NODEV:
+				if (0 != wifimgr_do_open(WIFIMGR_IFACE_NAME_STA)) {
+					BTD("%s, open fail\n", __func__);
+					res_result = RESULT_FAIL;
+					goto error;
+				}
+			break;
+			case WIFI_STA_STATUS_READY:
+			break;
+			case WIFI_STA_STATUS_CONNECTED:
+				if (0 != wifimgr_do_disconnect(1)) {
+					BTD("%s, STATUS_CONNECTED and do_disconnect fail\n", __func__);
+					res_result = RESULT_FAIL;
+					goto error;
+				}
+			break;
+			case WIFI_STA_STATUS_SCANNING:
+			case WIFI_STA_STATUS_CONNECTING:
+			case WIFI_STA_STATUS_DISCONNECTING:
+				BTD("%s,status = %d ,wifi is busy\n", __func__, cur_wifi_status.sta_status);
+				res_result = RESULT_FAIL;
+				goto error;
+			break;
+
+			default:
+				BTD("%s,status = %d not found\n", __func__, cur_wifi_status.sta_status);
+				res_result = RESULT_FAIL;
+				goto error;
+			break;
+		}
+	}else {
+		res_result = RESULT_FAIL;
+		goto error;
+	}
+
+error:
+	data[0] = RESULT_SET_CONF_AND_INTERVAL;
+	data[1] = res_result;
+
+	wifi_manager_notify(data, sizeof(data));
+}
+
 void wifimgr_ctrl_iface_notify_connect(char result)
 {
 	BTD("%s ,result = %d\n", __func__, result);
@@ -773,54 +889,86 @@ void wifimgr_set_mac_acl(const void *buf)
 {
 	BTD("%s\n", __func__);
 	int ret = -1;
-	char data[2] = {0};
-	char station_mac[BSSID_LEN+1] = {0};
-	u8_t res_result = RESULT_FAIL;
-	char *pmac = NULL;
+	char data[20] = {0};
 	u8_t data_len = 0;
+	char station_mac[BSSID_LEN+1] = {0};
+	u8_t res_result = RESULT_SUCCESS;
+	u16_t vlen = 0;
+	char *pmac = NULL;
+	u8_t acl_subcmd = 0;
+	u8_t bssid_len = 0;
 	const u8_t *p = buf;
 
-	data_len = sys_get_le16(p);
-	BTD("%s, data_len = %d\n", __func__, data_len);
+	vlen = sys_get_le16(p);
+	p += 2;
+	BTD("%s, AllDateLen = 0x%x\n", __func__, vlen);
 
-	if (BSSID_LEN != data_len && 1 != data_len) {
-		BTD("%s, error! station mac len = %d\n", __func__, data_len);
+	bssid_len = sys_get_le16(p);
+	BTD("%s, bssid_len = %d\n", __func__, bssid_len);
+
+	if (BSSID_LEN != bssid_len && 1 != bssid_len) {
+		BTD("%s, error! station mac len = %d\n", __func__, bssid_len);
 		res_result = RESULT_FAIL;
-		goto error;
-	} else if (BSSID_LEN == data_len) {
+		goto error_1;
+	} else if (BSSID_LEN == bssid_len) {
 		p += 2;
-		memcpy(station_mac, p, data_len);
+		memcpy(station_mac, p, bssid_len);
 	}
 
-	pmac = data_len == BSSID_LEN ? station_mac : NULL;
+	pmac = bssid_len == BSSID_LEN ? station_mac : NULL;
+
+	p += bssid_len;
+	acl_subcmd = p[0];
+	p += 1;
+	BTD("%s, acl_subcmd = %d\n", __func__, acl_subcmd);
+	if (acl_subcmd <= 0) {
+		BTD("%s: failed to get acl_subcmd! %d\n", __func__, acl_subcmd);
+		res_result = RESULT_FAIL;
+		goto error_1;
+	}
 
 	ret = wifimgr_get_ctrl(WIFIMGR_IFACE_NAME_AP);
 	if (ret) {
 		BTD("%s: failed to get ctrl! %d\n", __func__, ret);
-		goto error;
+		goto error_2;
 	}
 	if (wifimgr_get_ctrl_ops()->set_mac_acl) {
-		ret = wifimgr_get_ctrl_ops()->set_mac_acl(1, pmac);
+		ret = wifimgr_get_ctrl_ops()->set_mac_acl((char)acl_subcmd, pmac);
 	} else {
 		BTD("%s, set_mac_acl = NULL\n", __func__);
 		res_result = RESULT_FAIL;
-		goto error;
+		goto error_2;
 	}
-	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_AP);
 
+	BTD("%s, set_mac_acl ret = %d\n", __func__,ret);
 	if (0 != ret) {
 		BTD("%s, set_mac_acl fail,err = %d\n", __func__,ret);
 		res_result = RESULT_FAIL;
-		goto error;
+	} else {
+		BTD("%s, set_mac_acl fail,err = %d\n", __func__, ret);
+		res_result = RESULT_SUCCESS;
 	}
 
-	return;
+error_2:
+	wifimgr_release_ctrl(WIFIMGR_IFACE_NAME_AP);
+error_1:
+	if (!pmac) {
+		BTD("pmac = NULL\n");
+		res_result = RESULT_FAIL;
+		data_len = 2;
+		goto error;
+	}
+	BTD("res_result : %d, mac : %02x:%02x:%02x:%02x:%02x:%02x\n", res_result, pmac[0], pmac[1], pmac[2], pmac[3], pmac[4], pmac[5]);
 
+	data[2] = acl_subcmd;
+	memcpy(&data[3], pmac, BSSID_LEN);
+	res_result = RESULT_SUCCESS;
+	data_len = 9;
 error:
-	data[0] = RESULT_STATION_REPORT;
+	data[0] = RESULT_MAC_ACL_REPORT;
 	data[1] = res_result;
 
-	wifi_manager_notify(data, sizeof(data));
+	wifi_manager_notify(data, data_len);
 }
 
 int wifimgr_do_scan(int retry_num)
@@ -1127,6 +1275,9 @@ static ssize_t wifi_manager_write(struct bt_conn *conn, const struct bt_gatt_att
 		break;
 		case CMD_SET_MAC_ACL:
 			wifimgr_set_mac_acl(&value[1]);
+		break;
+		case CMD_SET_INTERVAL:
+			wifimgr_set_conf_and_interval(&value[1]);
 		break;
 
 		default:

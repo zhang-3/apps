@@ -19,6 +19,7 @@
 #define CMD_SCAN                       0x09
 #define CMD_STOP_AP                    0x0B
 #define CMD_SET_MAC_ACL                0x0C
+#define CMD_SET_INTERVAL			   0x0D
 
 #define RESULT_OPEN                    0x81
 #define RESULT_CLOSE                   0x82
@@ -31,6 +32,8 @@
 #define RESULT_SCAN_REPORT             0x8A
 #define RESULT_STOP_AP                 0x8B
 #define RESULT_STATION_REPORT          0x8C
+#define RESULT_SET_CONF_AND_INTERVAL   0x8D
+#define RESULT_MAC_ACL_REPORT          0x8E
 
 typedef struct {
 	char ssid[MAX_SSID_LEN+1];
