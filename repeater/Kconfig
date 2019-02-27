@@ -24,6 +24,7 @@ config ENGPC
 	default y
 	depends on IWNPI
 	depends on BT_TEST
+	depends on GPIO_UWP
 	help
 	   Enable ENGPC test tool for bt/wifi npi test
 

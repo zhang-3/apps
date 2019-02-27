@@ -11,6 +11,7 @@
 
 #include "eng_cmd4linuxhdlr.h"
 #include "wifi_eut_sprd.h"
+#include "bbat.h"
 
 #define SPRDENG_OK "OK"
 #define SPRDENG_ERROR "ERROR"
@@ -19,12 +20,15 @@
 #define NUM_ELEMS(x) (sizeof(x) / sizeof(x[0]))
 
 extern int eng_atdiag_euthdlr(char *buf, int len, char *rsp, int module_index);
+extern int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index);
 extern void bt_npi_parse(int module_index, char *buf, char *rsp);
+extern int check_bteut_ready(void);
 
 static int eng_linuxcmd_getwifiaddr(char *req, char *rsp);
 static int eng_linuxcmd_setwifiaddr(char *req, char *rsp);
 static int eng_linuxcmd_bteutmode(char *req, char *rsp);
 static int eng_linuxcmd_wifieutmode(char *req, char *rsp);
+static int eng_linuxcmd_wcntest(char *req, char *rsp);
 static int eng_linuxcmd_get_wcn_chip(char *req, char *rsp);
 static int eng_linuxcmd_getwifistatus(char *req, char *rsp);
 static int eng_linuxcmd_none_handle(char *req, char *rsp);
@@ -71,14 +75,15 @@ static struct eng_linuxcmd_str eng_linuxcmd[] = {
     {CMD_PROP, CMD_TO_AP, "AT+PROP", eng_linuxcmd_none_handle},
     {CMD_SETUARTSPEED, CMD_TO_AP, "AT+SETUARTSPEED", eng_linuxcmd_none_handle},
     {CMD_AUDIOLOGCTL, CMD_TO_AP, "AT+SPAUDIOOP", eng_linuxcmd_none_handle},
-    {CMD_SPCHKSD,        CMD_TO_AP,     "AT+SPCHKSD",      eng_linuxcmd_none_handle},
-    {CMD_GETWIFISTATUS,        CMD_TO_AP,     "AT+GETWIFISTATUS",      eng_linuxcmd_getwifistatus},
-    {CMD_EMMCSIZE,        CMD_TO_AP,     "AT+EMMCSIZE",      eng_linuxcmd_none_handle},
-    {CMD_EMMCDDRSIZE,        CMD_TO_AP,     "AT+EMMCDDRSIZE",      eng_linuxcmd_none_handle},
-    {CMD_GETWCNCHIP,    CMD_TO_AP,    "AT+GETWCNCHIP", eng_linuxcmd_get_wcn_chip},
-    {CMD_GETANDROIDVER, CMD_TO_AP,  "AT+GETANDROIDVER", eng_linuxcmd_none_handle},
-    {CMD_CPLOGCTL, CMD_TO_AP,  "AT+SPATCPLOG", eng_linuxcmd_none_handle},
-    {CMD_DBGWFC,        CMD_TO_AP,     "AT+DBGWFC",      eng_linuxcmd_none_handle},
+    {CMD_SPCHKSD, CMD_TO_AP, "AT+SPCHKSD", eng_linuxcmd_none_handle},
+    {CMD_GETWIFISTATUS, CMD_TO_AP, "AT+GETWIFISTATUS", eng_linuxcmd_getwifistatus},
+    {CMD_EMMCSIZE, CMD_TO_AP, "AT+EMMCSIZE", eng_linuxcmd_none_handle},
+    {CMD_EMMCDDRSIZE, CMD_TO_AP, "AT+EMMCDDRSIZE", eng_linuxcmd_none_handle},
+    {CMD_GETWCNCHIP, CMD_TO_AP, "AT+GETWCNCHIP", eng_linuxcmd_get_wcn_chip},
+    {CMD_GETANDROIDVER, CMD_TO_AP, "AT+GETANDROIDVER", eng_linuxcmd_none_handle},
+    {CMD_CPLOGCTL, CMD_TO_AP, "AT+SPATCPLOG", eng_linuxcmd_none_handle},
+    {CMD_DBGWFC, CMD_TO_AP, "AT+DBGWFC", eng_linuxcmd_none_handle},
+    {CMD_SPWCNTEST, CMD_TO_AP, "AT+SPWCNTEST", eng_linuxcmd_wcntest},//40
 };
 
 int eng_linuxcmd_none_handle(char *req, char *rsp)
@@ -155,6 +160,7 @@ int eng_linuxcmd_hdlr(int cmd, char *req, char *rsp)
 
 	return eng_linuxcmd[cmd].cmd_hdlr(req, rsp);
 }
+
 static int eng_linuxcmd_get_wcn_chip(char *req, char *rsp) {
   if (strchr(req, '?') != NULL) {
     #ifdef WCN_USE_MARLIN3
@@ -175,18 +181,27 @@ static int eng_linuxcmd_get_wcn_chip(char *req, char *rsp) {
   }
 }
 
-
-extern int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index);
 int eng_linuxcmd_wifieutmode(char *req, char *rsp) {
   int ret = -1;
   int len = 0;
 
-  ENG_LOG("test... req: %s\n", req);
-  ENG_LOG("%s(), cmd = %s\n", __func__, req);
-
-  ENG_LOG("req: 0x%x.\n", (unsigned int)req);
+  ENG_LOG("%s(), cmd = %s", __func__, req);
+  /*check bt status,if bt in test mode, must return error*/
+  if (check_bteut_ready() == -1) {
+	sprintf(rsp, "+SPWIFITEST:ERR=BT IN TEST MODE CAN NOT TEST WIFI");
+	ENG_LOG("BT IN TEST MODE CAN NOT TEST WIFI\n");
+	return -1;
+  }
   ret = eng_atdiag_wifi_euthdlr(req, len, rsp, WIFI_MODULE_INDEX);
 
+  return ret;
+}
+
+static int eng_linuxcmd_wcntest(char *req, char *rsp)
+{
+  int ret = 0;
+  ENG_LOG("%s(), cmd = %s", __FUNCTION__, req);
+  ret = bbat_test(req, rsp);
   return ret;
 }
 
