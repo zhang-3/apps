@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "log.h"
-LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+#include "logging/log.h"
+LOG_MODULE_DECLARE(REPEATER);
 
 #include <zephyr.h>
 #include <misc/printk.h>
@@ -80,11 +80,6 @@ static int cmd_read8(const struct shell *shell, size_t argc, char **argv)
 {
 	u32_t addr;
 	u32_t len;
-	int err = shell_cmd_precheck(shell, (argc == 3), NULL, 0);
-
-	if (err) {
-		return err;
-	}
 
 	addr = (u32_t)str2data(argv[1]);
 	len = str2data(argv[2]);
@@ -111,11 +106,6 @@ static int cmd_read32(const struct shell *shell, size_t argc, char **argv)
 {
 	u32_t addr;
 	u32_t len;
-	int err = shell_cmd_precheck(shell, (argc == 3), NULL, 0);
-
-	if (err) {
-		return err;
-	}
 
 	addr = (u32_t)str2data(argv[1]);
 	len = str2data(argv[2]);
@@ -129,11 +119,6 @@ static int cmd_write(const struct shell *shell, size_t argc, char **argv)
 {
 	u32_t p;
 	u32_t val;
-	int err = shell_cmd_precheck(shell, (argc == 3), NULL, 0);
-
-	if (err) {
-		return err;
-	}
 
 	p = str2data(argv[1]);
 	val = str2data(argv[2]);
@@ -158,8 +143,7 @@ static int cmd_version(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
-SHELL_CREATE_STATIC_SUBCMD_SET(sub_app)
-{
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_app,
 	SHELL_CMD(version, NULL, "Show kernel version.", cmd_version),
 	SHELL_CMD(read8, NULL, "Read memory in byte.\n"
 			"Usage: read8 <address> <count>", cmd_read8),
@@ -168,6 +152,6 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_app)
 	SHELL_CMD(write32, NULL, "Write memory in word.\n"
 			"Usage: write32 <address> <value>", cmd_write),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
-};
+);
 /* Creating root (level 0) command "app" */
 SHELL_CMD_REGISTER(app, &sub_app, "Function test commands", NULL);

@@ -4,12 +4,11 @@
 
 mainmenu "Wi-Fi repeater"
 
-
 module = REPEATER
 module-dep = LOG
-module-str = Log level for repeater app
+module-str = repeater
 module-help = Sets log level for repeater application.
-source "subsys/net/Kconfig.template.log_config.net"
+source "subsys/logging/Kconfig.template.log_config"
 
 source "Kconfig.zephyr"
 

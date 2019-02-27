@@ -139,12 +139,6 @@ static int cmd_sleep(const struct shell *shell, size_t argc, char **argv)
 {
 	int time;
 
-	int err = shell_cmd_precheck(shell, (argc == 2), NULL, 0);
-
-	if (err) {
-		return err;
-	}
-
 	time = atoi(argv[1]);
 	shell_fprintf(shell, SHELL_NORMAL,
 			"sleep %ims start...\n", time);
@@ -347,8 +341,7 @@ static int cmd_wipe_all_config(const struct shell *shell,
 	return rc;
 }
 
-SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
-{
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_test,
 	SHELL_CMD(rand, NULL, "Generate random number.", cmd_rand),
 	SHELL_CMD(intc, NULL, "Triger soft irq.", cmd_intc),
 	SHELL_CMD(uart, NULL, "Fill a message to UART.", cmd_uart),
@@ -366,6 +359,6 @@ SHELL_CREATE_STATIC_SUBCMD_SET(sub_test)
 	SHELL_CMD(wipe, NULL, "wipe all configs in userdata partition.",
 			cmd_wipe_all_config),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
-};
+);
 /* Creating root (level 0) command "test" */
 SHELL_CMD_REGISTER(test, &sub_test, "Function test commands", NULL);
