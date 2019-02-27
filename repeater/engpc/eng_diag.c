@@ -8,7 +8,7 @@
 #include <device.h>
 #include <uart.h>
 #include <logging/sys_log.h>
-
+#include <flash.h>
 
 #include "eng_diag.h"
 #include "engpc.h"
@@ -17,6 +17,9 @@
 #include "eut_opt.h"
 
 #define NUM_ELEMS(x) (sizeof(x) / sizeof(x[0]))
+
+#define FLASH_USERDATA_OFFSET	    0x2c0000
+#define FLASH_USERDATA_SIZE	    0x140000
 
 static char eng_diag_buf[ENG_DIAG_SIZE];
 static int eng_diag_len = 0;
@@ -156,7 +159,8 @@ int eng_diag_decode7d7e(unsigned char *buf, int len)
 	for (i = 0; i < len; i++) {
 		if ((buf[i] == 0x7d) || (buf[i] == 0x7e)) {
 			tmp = buf[i + 1] ^ 0x20;
-			ENG_LOG("%s: tmp=%x, buf[%d]=%x", __FUNCTION__, tmp, i + 1, buf[i + 1]);
+			ENG_LOG("%s: tmp=%x, buf[%d]=%x", __FUNCTION__,
+				tmp, i + 1, buf[i + 1]);
 			buf[i] = tmp;
 			for(j = i + 1; j < len; j ++){
 				buf[j] = buf[j+1];
@@ -184,7 +188,8 @@ int eng_diag_encode7d7e(char *buf, int len, int *extra_len)
 	for (i = 0; i < len; i++) {
 		if ((buf[i] == 0x7d) || (buf[i] == 0x7e)) {
 			tmp = buf[i] ^ 0x20;
-			ENG_LOG("%s: tmp=%x, buf[%d]=%x", __FUNCTION__, tmp, i, buf[i]);
+			ENG_LOG("%s: tmp=%x, buf[%d]=%x", __FUNCTION__,
+				tmp, i, buf[i]);
 			buf[i] = 0x7d;
 			for (j = len; j > i + 1; j--) {
 				buf[j] = buf[j - 1];
@@ -234,6 +239,10 @@ int get_sub_str(const char *buf, char **revdata, char a, char *delim,
 	substr = strstr(buf, delim);
 
 	if (!substr) {
+		if ((start != NULL) &&
+			(strstr(start, "CALTXPWREFUSEEN") != NULL)) {
+			memcpy(revdata[0], "CALTXPWREFUSEEN", 15);
+		}
 		return 0;
 	}
 
@@ -251,21 +260,26 @@ int get_sub_str(const char *buf, char **revdata, char a, char *delim,
 
 		ENG_LOG("command name : %s \n",revdata[0]);
 
-		/*there are some problem when use strtok, so parse string directly*/
+		/*there are some problem when use strtok
+		 * so parse string directly*/
 		int start_pos = 0, pos = 0, tmp = 1;
 		int length = strlen(substr);
 		ENG_LOG("length : %d, substr : %s\n",length, substr);
 
 		for(pos = 0; pos < length; pos++) {
 			if(substr[pos] == ',') {
-				memcpy(revdata[tmp], substr + start_pos, pos - start_pos);
-				ENG_LOG("value : revdata[%d] : %s\n",tmp, revdata[tmp]);
+				memcpy(revdata[tmp], substr + start_pos,
+					pos - start_pos);
+				ENG_LOG("value : revdata[%d] : %s\n",
+					tmp, revdata[tmp]);
 				tmp++;
 				start_pos = pos + 1;
 			}
 			else if(pos == length -1) {
-				memcpy(revdata[tmp], substr + start_pos, pos - start_pos + 1);
-				ENG_LOG("value : revdata[%d] : %s\n",tmp, revdata[tmp]);
+				memcpy(revdata[tmp], substr + start_pos,
+					pos - start_pos + 1);
+				ENG_LOG("value : revdata[%d] : %s\n",
+					tmp, revdata[tmp]);
 			}
 		}
 		/* get sub str by delimeter, no need use strtok*/
@@ -286,10 +300,11 @@ int get_cmd_index(char *buf)
 	int index = -1;
 	int i;
 	ENG_LOG("%s(), buf = %s \n", __FUNCTION__, buf);
+
 	for (i = 0; i < (int)NUM_ELEMS(eut_cmds); i++) {
 		if (strncmp(buf, eut_cmds[i].name, strlen(eut_cmds[i].name)) == 0
 		    && (strlen(buf) == strlen(eut_cmds[i].name))) {
-			ENG_LOG(
+				ENG_LOG(
 					"i=%d, eut_cmds[i].index= "
 					"%d, eut_cmds[i].name = %s\n",
 					i, eut_cmds[i].index, eut_cmds[i].name);
@@ -342,9 +357,10 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 
 	cmd_index = get_cmd_index(args0);
 	ENG_LOG(
-			"%s(), args0 = %s, args1 = %s, args2 = %s, args3 = %s cmd_index = "
-			"%d, module_index = %d\n",
-			__FUNCTION__, args0, args1, args2, args3, cmd_index, module_index);
+		"%s(), args0 = %s, args1 = %s, args2 = %s, args3 = %s"
+		"cmd_index = %d, module_index = %d\n",
+		__FUNCTION__, args0, args1, args2, args3,
+		cmd_index, module_index);
 
 	switch (cmd_index) {
 		case EUT_REQ_INDEX:
@@ -381,50 +397,64 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 			break;
 
 		case TX_INDEX: {
-			ENG_LOG("ADL %s(), case TX_INDEX, module_index = %d\n", __FUNCTION__,
-				module_index);
+			ENG_LOG("ADL %s(), case TX_INDEX, module_index = %d\n",
+				__FUNCTION__, module_index);
 
 			if (module_index == WIFI_MODULE_INDEX) {
-				ENG_LOG("%s(), case TX_INDEX, call wifi_tx_set()\n", __FUNCTION__);
-				wifi_tx_set(atoi(data[1]), atoi(data[2]), atoi(data[3]), rsp);
+				ENG_LOG("%s(), case TX_INDEX"
+					"call wifi_tx_set()\n",
+					__FUNCTION__);
+				wifi_tx_set(atoi(data[1]), atoi(data[2]),
+					    atoi(data[3]), rsp);
 			} else {
-				ENG_LOG("%s(), case TX_INDEX, module_index is ERROR\n", __FUNCTION__);
+				ENG_LOG("%s(), case TX_INDEX, "
+					"module_index is ERROR\n",
+					__FUNCTION__);
 			}
 		} break;
 
 		case RX_INDEX: {
-			ENG_LOG("ADL %s(), case RX_INDEX, module_index = %d", __FUNCTION__,
-				module_index);
+			ENG_LOG("ADL %s(), case RX_INDEX,"
+				" module_index = %d",
+				__FUNCTION__, module_index);
 
 			if (module_index == WIFI_MODULE_INDEX) {
-				ENG_LOG("ADL %s(), case RX_INDEX, call wifi_rx_set()", __FUNCTION__);
+				ENG_LOG("ADL %s(), case RX_INDEX, "
+					"call wifi_rx_set()", __FUNCTION__);
 				wifi_rx_set(atoi(data[1]), rsp);
 			} else {
-				ENG_LOG("ADL %s(), case RX_INDEX, module_index is ERROR", __FUNCTION__);
+				ENG_LOG("ADL %s(), case RX_INDEX, "
+					" module_index is ERROR", __FUNCTION__);
 			}
 		} break;
 
 		case TX_REQ_INDEX: {
-			ENG_LOG("ADL %s(), case TX_REQ_INDEX, module_index = %d", __FUNCTION__,
-				module_index);
+			ENG_LOG("ADL %s(), case TX_REQ_INDEX, "
+				"module_index = %d",
+				__FUNCTION__, module_index);
 
 			if (WIFI_MODULE_INDEX == module_index) {
-				ENG_LOG("ADL %s(), case TX_REQ_INDEX, call wifi_tx_get()", __FUNCTION__);
+				ENG_LOG("ADL %s(), case TX_REQ_INDEX ,"
+					"call wifi_tx_get()", __FUNCTION__);
 				wifi_tx_get(rsp);
 			} else {
-				ENG_LOG("ADL %s(), case TX_REQ_INDEX, module_index is ERROR", __FUNCTION__);
+				ENG_LOG("ADL %s(), case TX_REQ_INDEX, "
+					"module_index is ERROR", __FUNCTION__);
 			}
 		} break;
 
 		case RX_REQ_INDEX: {
-			ENG_LOG("ADL %s(), case RX_REQ_INDEX, module_index = %d", __FUNCTION__,
-				module_index);
+			ENG_LOG("ADL %s(), case RX_REQ_INDEX, "
+				"module_index = %d",
+				__FUNCTION__, module_index);
 
 			if (WIFI_MODULE_INDEX == module_index) {
-				ENG_LOG("ADL %s(), case RX_REQ_INDEX, call wifi_rx_get()", __FUNCTION__);
+				ENG_LOG("ADL %s(), case RX_REQ_INDEX, "
+					"call wifi_rx_get()", __FUNCTION__);
 				wifi_rx_get(rsp);
 			} else {
-				ENG_LOG("ADL %s(), case RX_REQ_INDEX, module_index is ERROR", __FUNCTION__);
+				ENG_LOG("ADL %s(), case RX_REQ_INDEX, "
+					"module_index is ERROR", __FUNCTION__);
 			}
 		} break;
 
@@ -449,19 +479,23 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 			wifi_rate_set(data[1], rsp);
 			break;
 		case ENG_WIFIRATE_REQ_INDEX:
-			ENG_LOG("%s(), case:ENG_WIFIRATE_REQ_INDEX\n", __FUNCTION__);
+			ENG_LOG("%s(), case:ENG_WIFIRATE_REQ_INDEX\n",
+				__FUNCTION__);
 			wifi_rate_get(rsp);
 			break;
 		case ENG_WIFITXGAININDEX_INDEX:
-			ENG_LOG("%s(), case:ENG_WIFITXGAININDEX_INDEX\n", __FUNCTION__);
+			ENG_LOG("%s(), case:ENG_WIFITXGAININDEX_INDEX\n",
+				__FUNCTION__);
 			wifi_txgainindex_set(atoi(data[1]), rsp);
 			break;
 		case ENG_WIFITXGAININDEX_REQ_INDEX:
-			ENG_LOG("%s(), case:ENG_WIFITXGAININDEX_REQ_INDEX\n", __FUNCTION__);
+			ENG_LOG("%s(), case:ENG_WIFITXGAININDEX_REQ_INDEX\n",
+				__FUNCTION__);
 			wifi_txgainindex_get(rsp);
 			break;
 		case ENG_WIFIRSSI_REQ_INDEX:
-			ENG_LOG("%s(), case:ENG_WIFIRSSI_REQ_INDEX\n", __FUNCTION__);
+			ENG_LOG("%s(), case:ENG_WIFIRSSI_REQ_INDEX\n",
+				__FUNCTION__);
 			wifi_rssi_get(rsp);
 			break;
 
@@ -500,13 +534,15 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 
 		/* Signal Band Width */
 		case WIFISIGBANDWIDTH_REQ_INDEX: {
-			ENG_LOG("%s(), case:WIFIBANDWIDTH_REQ_INDEX", __FUNCTION__);
+			ENG_LOG("%s(), case:WIFIBANDWIDTH_REQ_INDEX",
+				__FUNCTION__);
 			wifi_sigbandwidth_get(rsp);
 		} break;
 
 		case WIFISIGBANDWIDTH_INDEX: {
 			ENG_LOG("%s(), case:WIFIBANDWIDTH_INDEX", __FUNCTION__);
-			wifi_sigbandwidth_set((wifi_bandwidth)atoi(data[1]), rsp);
+			wifi_sigbandwidth_set((wifi_bandwidth)atoi(data[1]),
+					      rsp);
 		} break;
 
 		/* Tx Power Level */
@@ -566,13 +602,15 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 
 		/* Payload */
 		case WIFIGUARDINTERVAL_REQ_INDEX: {
-			ENG_LOG("%s(), case:WIFIGUARDINTERVAL_REQ_INDEX", __func__);
+			ENG_LOG("%s(), case:WIFIGUARDINTERVAL_REQ_INDEX",
+				__func__);
 			wifi_guardinterval_get(rsp);
 		} break;
 
 		case WIFIGUARDINTERVAL_INDEX: {
 			ENG_LOG("%s(), case:WIFIGUARDINTERVAL_INDEX", __func__);
-			wifi_guardinterval_set((wifi_guard_interval)atoi(data[1]), rsp);
+			wifi_guardinterval_set(
+				(wifi_guard_interval)atoi(data[1]), rsp);
 		} break;
 
 		/* MAC Filter */
@@ -626,7 +664,8 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 		} break;
 		/*wifi get cdec from efuse*/
 		case WIFICDECEFUSE_REQ_INDEX: {
-			ENG_LOG("%s(), case:WIFICDECEFUSE_REQ_INDEX\n", __func__);
+			ENG_LOG("%s(), case:WIFICDECEFUSE_REQ_INDEX\n",
+				__func__);
 			wifi_cdec_efuse_get(rsp);
 		} break;
 
@@ -659,7 +698,8 @@ int eng_atdiag_wifi_euthdlr(char *buf, int len, char *rsp, int module_index)
 		} break;
 
 		case WIFICALTXPWREFUSEEN_INDEX: {
-			ENG_LOG("%s(), case:WIFICALTXPWREFUSEEN_INDEX", __func__);
+			ENG_LOG("%s(), case:WIFICALTXPWREFUSEEN_INDEX",
+				__func__);
 			wifi_cal_txpower_efuse_en(rsp);
 		} break;
 
@@ -698,7 +738,6 @@ int eng_diag_parse(char *buf, int len, int *num)
 	ENG_LOG("start %s\n", __func__);
 	ENG_LOG("%s: cmd=0x%x; subcmd=0x%x\n", __FUNCTION__, head_ptr->type,
 		head_ptr->subtype);
-	// ENG_LOG("%s: cmd is:%s \n", __FUNCTION__, (buf + DIAG_HEADER_LENGTH + 1));
 
 	switch (head_ptr->type) {
 		case DIAG_CMD_AT:
@@ -708,9 +747,9 @@ int eng_diag_parse(char *buf, int len, int *num)
 				ret = CMD_COMMON;
 			}
 			break;
-#if 0
 		case DIAG_CMD_FACTORYMODE:
-			if (head_ptr->subtype >= 0x2 && head_ptr->subtype <= 0x4) {
+			if (head_ptr->subtype >= 0x2 &&
+				head_ptr->subtype <= 0x4) {
 				// 2: NVITEM_PRODUCT_CTRL_READ
 				// 3: NVITEM_PRODUCT_CTRL_WRITE
 				// 4: NVITEM_PRODUCT_CTRL_ERASE
@@ -719,7 +758,6 @@ int eng_diag_parse(char *buf, int len, int *num)
 				ret = CMD_COMMON;
 			}
 			break;
-#endif
 		default:
 			ENG_LOG("%s: Default\n", __FUNCTION__);
 			ret = CMD_COMMON;
@@ -743,7 +781,8 @@ int eng_diag_write2pc(struct device *uart, char* diag_data, int r_cnt)
 				ENG_LOG("write ebusy\n");
 				k_sleep(59000);
 			} else {
-				ENG_LOG("eng_vdiag_r no log data write:%d\n", w_cnt);
+				ENG_LOG("eng_vdiag_r no log data write:%d\n",
+					w_cnt);
 			}
 		}
 		ENG_LOG("write success, wcnt : %d\n",w_cnt);
@@ -754,6 +793,188 @@ int eng_diag_write2pc(struct device *uart, char* diag_data, int r_cnt)
 
 	ENG_LOG("write finished, return offset : %d\n",offset);
 	return offset;
+}
+
+int eng_write_productnvdata(unsigned char *databuf, int data_len)
+{
+	struct device *flash_dev;
+
+	flash_dev = device_get_binding(DT_FLASH_DEV_NAME);
+
+	if (!flash_dev) {
+		ENG_LOG("SPI flash driver was not found!\n");
+		return -1;
+	}
+
+	ENG_LOG("%s unlock data proctection\n", __func__);
+	flash_write_protection_set(flash_dev, false);
+	ENG_LOG("%s start to erase userdata on flash(0x%x)\n",
+		__func__, FLASH_USERDATA_OFFSET);
+	if (flash_erase(flash_dev,
+			FLASH_USERDATA_OFFSET,
+			FLASH_USERDATA_SIZE) != 0) {
+		ENG_LOG("%s fail to erase userdata on flash\n",
+			__func__);
+	} else {
+		ENG_LOG("%s erase userdata on flash successfully\n",
+			__func__);
+	}
+
+	ENG_LOG("%s start to write nv data to flash(0x%x)\n",
+		__func__, FLASH_USERDATA_OFFSET);
+	if (flash_write(flash_dev, FLASH_USERDATA_OFFSET, databuf,
+			data_len) != 0) {
+		ENG_LOG("%s fail to write nv data to flash\n", __func__);
+		flash_write_protection_set(flash_dev, true);
+		return -1;
+	}
+	ENG_LOG("%s write nv data to flash successfully\n", __func__);
+	flash_write_protection_set(flash_dev, true);
+	ENG_LOG("%s lock data proctection\n", __func__);
+	return 0;
+}
+
+/*read data from flash*/
+int eng_read_productnvdata(unsigned char *databuf, int data_len)
+{
+	struct device *flash_dev;
+
+	flash_dev = device_get_binding(DT_FLASH_DEV_NAME);
+
+	if (!flash_dev) {
+		ENG_LOG("SPI flash driver was not found!\n");
+		return -1;
+	}
+
+	ENG_LOG("%s start to read nv data from flash(0x%x)\n",
+		__func__, FLASH_USERDATA_OFFSET);
+	if (flash_read(flash_dev, FLASH_USERDATA_OFFSET, databuf,
+		       data_len) != 0) {
+		ENG_LOG("%s fail to read nv data from flash\n", __func__);
+		return -1;
+	}
+
+	ENG_LOG("%s successfully read nv data from flash\n", __func__);
+	return 0;
+}
+
+int translate_packet(char *dest, unsigned char *src, int size)
+{
+	int i;
+	int translated_size = 0;
+
+	dest[translated_size++] = 0x7E;
+
+	for (i = 0; i < size; i++) {
+		if (src[i] == 0x7E) {
+			dest[translated_size++] = 0x7D;
+			dest[translated_size++] = 0x5E;
+		} else if (src[i] == 0x7D) {
+			dest[translated_size++] = 0x7D;
+			dest[translated_size++] = 0x5D;
+		} else
+			dest[translated_size++] = src[i];
+	}
+
+	dest[translated_size++] = 0x7E;
+
+	return translated_size;
+}
+
+#define NVITEM_ERROR_E int
+#define NVERR_NONE 0
+
+static int eng_diag_product_ctrl(char *buf, int len, char *rsp, int rsplen)
+{
+	int offset = 0;
+	int data_len = 0;
+	int head_len = 0;
+	int rsp_len = 0;
+	unsigned char *nvdata = NULL;
+	NVITEM_ERROR_E nverr = NVERR_NONE;
+	MSG_HEAD_T *msg_head = (MSG_HEAD_T *)(buf + 1);
+
+	head_len = sizeof(MSG_HEAD_T) + 2 * sizeof(unsigned short);
+	offset = *(unsigned short *)((char *)msg_head + sizeof(MSG_HEAD_T));
+	data_len = *(unsigned short *)((char *)msg_head +
+		    sizeof(MSG_HEAD_T) + sizeof(unsigned short));
+
+	ENG_LOG("%s: offset: %d, data_len: %d\n", __func__, offset, data_len);
+
+	if (rsplen < (head_len + data_len + 2)) {
+		/* 2:0x7e */
+		ENG_LOG("%s: Rsp buffer is not enough, need buf: %d\n",
+			__FUNCTION__, head_len + data_len);
+		return 0;
+	}
+
+	/* 2: NVITEM_PRODUCT_CTRL_READ
+	* 3: NVITEM_PRODUCT_CTRL_WRITE
+	*/
+	ENG_LOG("%s: msg_head->subtype: %d\n", __func__, msg_head->subtype);
+	switch (msg_head->subtype) {
+
+		case 2:
+			nvdata = (unsigned char *)malloc(data_len + head_len);
+			if (nvdata == NULL) {
+				ENG_LOG("No memory\n");
+				return -1;
+			}
+			memcpy(nvdata, msg_head, head_len);
+			nverr = eng_read_productnvdata(nvdata + head_len,
+				data_len);
+			if (NVERR_NONE != nverr) {
+				ENG_LOG("%s: Read ERROR: %d\n",
+					__FUNCTION__, nverr);
+				data_len = 0;
+			}
+			((MSG_HEAD_T *)nvdata)->subtype = nverr;
+			((MSG_HEAD_T *)nvdata)->len = head_len + data_len;
+
+			rsp_len = translate_packet(rsp, nvdata,
+				head_len + data_len);
+			free(nvdata);
+
+			break;
+
+		case 3:
+			nvdata = (unsigned char *)malloc(rsplen);
+			if (nvdata == NULL) {
+				ENG_LOG("No memory\n");
+				return -1;
+			}
+			nverr = eng_read_productnvdata(nvdata, data_len);
+
+			if (NVERR_NONE != nverr) {
+				ENG_LOG("%s: Read before writing ERROR: %d\n",
+					__func__, nverr);
+			} else {
+				memcpy(nvdata + offset, (char *)msg_head +
+					head_len, data_len);
+				nverr = eng_write_productnvdata(nvdata,
+					data_len);
+				if (NVERR_NONE != nverr) {
+					ENG_LOG("%s:Write ERROR: %d\n",
+						__func__, nverr);
+				}
+			free(nvdata);
+
+			msg_head->subtype = nverr;
+			msg_head->len = sizeof(MSG_HEAD_T);
+			rsp_len = translate_packet(rsp,
+				(unsigned char *)msg_head, sizeof(MSG_HEAD_T));
+			}
+
+			break;
+
+		default:
+			ENG_LOG("%s: ERROR Oper: %d !\n", __func__,
+				msg_head->subtype);
+		return 0;
+	}
+
+	ENG_LOG("%s: rsp_len : %d\n", __func__, rsp_len);
+	return rsp_len;
 }
 
 int eng_diag_apcmd_hdlr(unsigned char *buf, int len, char *rsp)
@@ -796,16 +1017,27 @@ int eng_diag_user_handle(struct device *uart, int type, char *buf, int len)
 
 	switch (type) {
 		case CMD_USER_APCMD:
-			// For compatible with pc tool: MOBILETEST,
-			// send a empty diag framer first.
-			//{
-			//  char emptyDiag[] = {0x7e, 0x00, 0x00, 0x00, 0x00,
-			//                      0x08, 0x00, 0xd5, 0x00, 0x7e};
-			//  write(get_ser_diag_fd(), emptyDiag, sizeof(emptyDiag));
-			//}
-			//just handle at command.
+			/* For compatible with pc tool: MOBILETEST,
+			 * send a empty diag framer first.
+			 * {
+			 *	char emptyDiag[] = {
+			 *		0x7e, 0x00, 0x00, 0x00, 0x00,
+			 *		0x08, 0x00, 0xd5, 0x00, 0x7e
+			 *		};
+			 *	write(get_ser_diag_fd(), emptyDiag,
+			 *	      sizeof(emptyDiag));
+			 * }
+			 * just handle at command.*/
 			rlen = eng_diag_apcmd_hdlr(buf, len, rsp);
 			break;
+		case CMD_USER_PRODUCT_CTRL:
+			ENG_LOG("%s: CMD_USER_PRODUCT_CTRL\n", __func__);
+			memset(eng_diag_buf, 0, sizeof(eng_diag_buf));
+			rlen = eng_diag_product_ctrl(buf, len, eng_diag_buf,
+				sizeof(eng_diag_buf));
+			eng_diag_len = rlen;
+			eng_diag_write2pc(uart, eng_diag_buf, eng_diag_len);
+			return 0;
 		default:
 			break;
 	}
@@ -829,7 +1061,8 @@ int eng_diag_user_handle(struct device *uart, int type, char *buf, int len)
 	eng_diag_len = head.len + extra_len + 2;
 	ENG_LOG("%s: eng_diag_write2pc eng_diag_buf=%s;eng_diag_len:%d !\n",
 		__FUNCTION__, eng_diag_buf, eng_diag_len);
-	eng_diag_encode7d7e((char *)(eng_diag_buf+1), (eng_diag_len-2), &eng_diag_len);
+	eng_diag_encode7d7e((char *)(eng_diag_buf+1),
+			    (eng_diag_len-2), &eng_diag_len);
 	eng_diag_buf[eng_diag_len-1] = 0x7e;
 
 	ret = eng_diag_write2pc(uart, eng_diag_buf, eng_diag_len);
@@ -877,7 +1110,8 @@ int eng_diag(struct device *uart, char *buf, int len)
 
 		ret = eng_diag_write2pc(uart, eng_diag_buf, eng_diag_len);
 		if (ret <= 0) {
-			ENG_LOG("%s: eng_diag_write2pc ret=%d !\n", __FUNCTION__, ret);
+			ENG_LOG("%s: eng_diag_write2pc ret=%d !\n",
+				__FUNCTION__, ret);
 		}
 	}
 
