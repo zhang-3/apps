@@ -50,7 +50,7 @@ static int _test_uwp_flash_internel(const struct shell *shell, size_t argc, char
 
 	int err = shell_cmd_precheck(shell, (argc >= 0), NULL, 0);
 	if (err) {
-		printf(" %s param error, argc:[%d]", argc);
+		printf(" %s param error, argc:[%d]", __func__, argc);
 		return err;
 	}
 
