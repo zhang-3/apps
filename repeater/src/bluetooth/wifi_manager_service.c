@@ -17,7 +17,7 @@
 #include "host/hci_core.h"
 
 #include "wifi_manager_service.h"
-#include <uwp5661/drivers/src/bt/uki_utlis.h>
+#include <uki_utlis.h>
 
 #define UINT16_TO_STREAM(p, u16) {*(p)++ = (uint8_t)(u16); *(p)++ = (uint8_t)((u16) >> 8);}
 #define UINT8_TO_STREAM(p, u8)   {*(p)++ = (uint8_t)(u8);}

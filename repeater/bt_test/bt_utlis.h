@@ -7,7 +7,7 @@
 #ifndef __BT_TEST_BT_UTLIS_H_
 #define __BT_TEST_BT_UTLIS_H_
 
-#include <uwp5661/drivers/src/bt/uki_utlis.h>
+#include <uki_utlis.h>
 
 #define BT_TEST_LOG_ON 0
 

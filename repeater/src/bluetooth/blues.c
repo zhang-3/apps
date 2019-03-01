@@ -25,7 +25,7 @@
 
 #include <i2c.h>
 
-#include <uwp5661/drivers/src/bt/uki_utlis.h>
+#include <uki_utlis.h>
 #include "blues.h"
 #include "throughput.h"
 #include "wifi_manager_service.h"
