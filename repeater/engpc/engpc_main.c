@@ -121,7 +121,7 @@ int engpc_thread(int argc, char *argv[])
 		/*ENG_LOG("%s before take sem\n", __FUNCTION__);*/
 		k_sem_take(&uart_rx_sem, K_FOREVER);
 		if (offset > 0) {
-			show_buf(log_data, offset);
+			//show_buf(log_data, offset);
 			memcpy(g_buf.buf + g_buf.used, log_data, offset);
 			g_buf.used += offset;
 			show_buf(g_buf.buf, g_buf.used);

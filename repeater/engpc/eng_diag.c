@@ -18,12 +18,14 @@
 
 #define NUM_ELEMS(x) (sizeof(x) / sizeof(x[0]))
 
-#define FLASH_USERDATA_OFFSET	    0x2c0000
-#define FLASH_USERDATA_SIZE	    0x140000
+#define FLASH_USERDATA_OFFSET	    0x3ff000
+#define FLASH_USERDATA_SIZE	    0x1000
 
 static char eng_diag_buf[ENG_DIAG_SIZE];
 static int eng_diag_len = 0;
 static int s_cmd_index = -1;
+
+extern void show_buf(unsigned char *buf, unsigned int len);
 
 struct eut_cmd eut_cmds[] = {
 	{EUT_REQ_INDEX, ENG_EUT_REQ},  // sprd
@@ -828,6 +830,7 @@ int eng_write_productnvdata(unsigned char *databuf, int data_len)
 		flash_write_protection_set(flash_dev, true);
 		return -1;
 	}
+	//show_buf(databuf, (unsigned int)data_len);
 	ENG_LOG("%s write nv data to flash successfully\n", __func__);
 	flash_write_protection_set(flash_dev, true);
 	ENG_LOG("%s lock data proctection\n", __func__);
@@ -849,10 +852,11 @@ int eng_read_productnvdata(unsigned char *databuf, int data_len)
 	ENG_LOG("%s start to read nv data from flash(0x%x)\n",
 		__func__, FLASH_USERDATA_OFFSET);
 	if (flash_read(flash_dev, FLASH_USERDATA_OFFSET, databuf,
-		       data_len) != 0) {
+			data_len) != 0) {
 		ENG_LOG("%s fail to read nv data from flash\n", __func__);
 		return -1;
 	}
+	//show_buf(databuf, (unsigned int)data_len);
 
 	ENG_LOG("%s successfully read nv data from flash\n", __func__);
 	return 0;
@@ -903,8 +907,8 @@ static int eng_diag_product_ctrl(char *buf, int len, char *rsp, int rsplen)
 
 	if (rsplen < (head_len + data_len + 2)) {
 		/* 2:0x7e */
-		ENG_LOG("%s: Rsp buffer is not enough, need buf: %d\n",
-			__FUNCTION__, head_len + data_len);
+		ENG_LOG("%s: Rsp buffer is not enough(%d), need buf: %d\n",
+			__FUNCTION__, rsplen, head_len + data_len);
 		return 0;
 	}
 
@@ -1028,7 +1032,8 @@ int eng_diag_user_handle(struct device *uart, int type, char *buf, int len)
 			 *	      sizeof(emptyDiag));
 			 * }
 			 * just handle at command.*/
-			rlen = eng_diag_apcmd_hdlr(buf, len, rsp);
+			rlen = eng_diag_apcmd_hdlr((unsigned char *)buf,
+				len, rsp);
 			break;
 		case CMD_USER_PRODUCT_CTRL:
 			ENG_LOG("%s: CMD_USER_PRODUCT_CTRL\n", __func__);
@@ -1039,6 +1044,7 @@ int eng_diag_user_handle(struct device *uart, int type, char *buf, int len)
 			eng_diag_write2pc(uart, eng_diag_buf, eng_diag_len);
 			return 0;
 		default:
+			ENG_LOG("%s: CMD_COMMON\n", __func__);
 			break;
 	}
 

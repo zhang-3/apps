@@ -1,7 +1,7 @@
 #ifndef __ENG_DIAG_H__
 #define __ENG_DIAG_H__
 
-#define ENG_DIAG_SIZE 256
+#define ENG_DIAG_SIZE 1800
 
 #define MAX_IMEI_LENGTH 8
 #define MAX_IMEI_STR_LENGTH 15
