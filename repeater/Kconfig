@@ -14,13 +14,11 @@ source "Kconfig.zephyr"
 
 config DHRYSTONE
         bool "dhrystone benchmark"
-        default n
 	help
            Enable the dhrystone benchmark.
 
 config ENGPC
 	bool "ENGPC test tool"
-	default y
 	depends on IWNPI
 	depends on BT_TEST
 	depends on GPIO_UWP
@@ -29,7 +27,6 @@ config ENGPC
 
 config IWNPI
 	bool "iwnpi tool for wifi npi test"
-	default y
 	select NETWORKING
 	depends on WIFI_UWP
 	help
@@ -37,20 +34,17 @@ config IWNPI
 
 config BT_TEST
 	bool "test tool for bt npi"
-	default y
 	depends on BT_UWP5661
 	help
 	   Enable the bt npi test
 
 config FLASH_TEST
 	bool "test tool for flash npi"
-	default y
 	help
 	   Enable the flash test
 
 config OTA
 	bool
-	default y
 	select HTTP
 	select HTTP_CLINET
 	help
