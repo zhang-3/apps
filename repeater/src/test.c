@@ -327,7 +327,7 @@ static int cmd_wipe_all_config(const struct shell *shell,
 	const struct flash_area *fap;
 	int rc;
 
-	rc = flash_area_open(CONFIG_SETTINGS_FCB_FLASH_AREA, &fap);
+	rc = flash_area_open(DT_FLASH_AREA_STORAGE_ID, &fap);
 
 	if (rc == 0) {
 		rc = flash_area_erase(fap, 0, fap->fa_size);
