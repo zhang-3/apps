@@ -12,9 +12,6 @@
 #define WLNPI_RESULT_BUF_LEN        (128)
 #define IWNPI_EXEC_STATUS_BUF_LEN   (64)
 
-#define STA_IDX	    1
-#define AP_IDX	    2
-
 typedef unsigned char u8;
 typedef unsigned short u16;
 
@@ -180,7 +177,6 @@ enum GET_STATUS_SUBTYPE {
 
 typedef struct
 {
-	unsigned int ictx_id;
 	int npi_cmd_id;
 	unsigned char mac[6];
 }wlnpi_t;

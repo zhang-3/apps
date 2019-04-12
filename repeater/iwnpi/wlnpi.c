@@ -17,8 +17,8 @@ struct device *dev;
 extern int npi_wifi_iface_init(struct device **dev);
 extern int npi_open_station(struct device *dev);
 extern int npi_close_station(struct device *dev);
-extern int npi_cmd_send_recv(struct device *dev, int ictx_id,
-			     char *t_buf, uint32_t t_len, char *r_buf,
+extern int npi_cmd_send_recv(struct device *dev, char *t_buf,
+			     uint32_t t_len, char *r_buf,
 			     uint32_t *r_len);
 extern int npi_get_mac(struct device *dev, char * buf);
 extern int iwnpi_hex_dump(unsigned char *name, unsigned short nLen,
@@ -79,12 +79,10 @@ static int sprdwl_npi_cmd_handler(wlnpi_t *wlnpi, unsigned char *s_buf,
 {
 	WLNPI_CMD_HDR_T *hdr = NULL;
 	char dbgstr[64] = { 0 };
-	int ictx_id = 0;
 	int ret = 0;
 	int recv_len = 0;
 
 	ENG_LOG("enter %s\n", __func__);
-	ictx_id = wlnpi->ictx_id;
 
 	sprintf(dbgstr, "[iwnpi][SEND][%d]:", s_len);
 	hdr = (WLNPI_CMD_HDR_T *)s_buf;
@@ -94,7 +92,7 @@ static int sprdwl_npi_cmd_handler(wlnpi_t *wlnpi, unsigned char *s_buf,
 		       (unsigned char *)s_buf, s_len);
 	*/
 
-	ret = npi_cmd_send_recv(dev, ictx_id, (char *)s_buf, (uint32_t)s_len,
+	ret = npi_cmd_send_recv(dev, (char *)s_buf, (uint32_t)s_len,
 				(char *)r_buf, (uint32_t *)r_len);
 	if (ret < 0)
 	{
@@ -148,11 +146,9 @@ static int sprdwl_npi_get_info_handler(wlnpi_t *wlnpi, unsigned char *s_buf,
 				       int s_len, unsigned char *r_buf,
 				       unsigned int *r_len)
 {
-	int ictx_id = 0;
 	int ret = 0;
 
 	ENG_LOG("enter %s\n", __func__);
-	ictx_id = wlnpi->ictx_id;
 	ret = npi_get_mac(dev, (char *)r_buf);
 	ENG_LOG("%s() ret from wifi drv is %d\n", __func__, ret);
 
@@ -229,8 +225,6 @@ int iwnpi_cmd(int argc, char **argv)
 
 	argc--;
 	argv++;
-	/* set ictx_id to STA mode */
-	wlnpi->ictx_id = STA_IDX;
 
 	if (0 == strcmp(argv[0], WLNPI_WLAN0_NAME))
 	{

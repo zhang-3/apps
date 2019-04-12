@@ -73,9 +73,8 @@ int npi_close_station(struct device *dev)
 	return mgmt_api->close(dev);
 }
 
-int npi_cmd_send_recv(struct device *dev, int ictx_id,
-		      char *t_buf, u32_t t_len, char *r_buf,
-		      u32_t *r_len)
+int npi_cmd_send_recv(struct device *dev, char *t_buf,
+		      u32_t t_len, char *r_buf, u32_t *r_len)
 {
 	struct wifi_drv_api *mgmt_api =
 	    (struct wifi_drv_api *)dev->driver_api;
@@ -86,6 +85,6 @@ int npi_cmd_send_recv(struct device *dev, int ictx_id,
 		return -EIO;
 
 	ENG_LOG("leaving %s\n", __func__);
-	return mgmt_api->hw_test(dev, ictx_id, (char *)t_buf,
-				 t_len, (char *)r_buf, r_len);
+	return mgmt_api->hw_test(dev, (char *)t_buf, t_len,
+				 (char *)r_buf, r_len);
 }
