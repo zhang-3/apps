@@ -8,7 +8,7 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 #include <zephyr.h>
 #include <misc/printk.h>
 #include <shell/shell.h>
-#include <logging/sys_log.h>
+#include <logging/log.h>
 #include <stdlib.h>
 #include <device.h>
 #include <gpio.h>
